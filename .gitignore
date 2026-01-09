@@ -1,0 +1,22 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Website (SvelteKit)
+website/node_modules/
+website/build/
+website/.svelte-kit/
+website/package/
+website/vite.config.js.timestamp-*
+website/vite.config.ts.timestamp-*

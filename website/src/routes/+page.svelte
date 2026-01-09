@@ -33,9 +33,9 @@
 				a tiny language for orchestrating AI agents
 			</p>
 
-			<p class="mt-12 font-mono text-[10px] tracking-widest uppercase text-neutral-400">
-				Coming Soon<span
-					class="inline-block w-1.5 h-3 ml-1 align-middle bg-neutral-400 {cursorVisible ? 'opacity-100' : 'opacity-0'}"
+			<p class="mt-12 font-mono text-[10px] tracking-widest uppercase text-neutral-400 flex items-center justify-center">
+				<span>Coming Soon</span><span
+					class="inline-block w-1.5 h-[10px] ml-1 bg-neutral-400 {cursorVisible ? 'opacity-100' : 'opacity-0'}"
 				></span>
 			</p>
 		</div>
