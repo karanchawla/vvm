@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-vvm-purple: oklch(.476 .296 265);
+	--font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
