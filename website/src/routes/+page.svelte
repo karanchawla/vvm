@@ -30,24 +30,50 @@
 			</h1>
 
 			<p class="font-mono text-xs sm:text-sm tracking-wide text-neutral-500">
-				a tiny language for orchestrating AI agents
+				The protocol for intelligence
 			</p>
 
-			<p class="mt-12 font-mono text-[10px] tracking-widest uppercase text-neutral-400 flex items-center justify-center">
-				<span>Coming Soon</span><span
-					class="inline-block w-1.5 h-[10px] ml-1 bg-neutral-400 {cursorVisible ? 'opacity-100' : 'opacity-0'}"
+			<p
+				class="mt-12 font-mono text-xs tracking-widest uppercase text-neutral-400 flex items-center justify-center"
+			>
+				<span>Coming Soon</span>
+				<span
+					class="inline-block w-1.5 h-3 ml-1 bg-neutral-400 transition-opacity duration-100 {cursorVisible
+						? 'opacity-100'
+						: 'opacity-0'}"
+					aria-hidden="true"
 				></span>
 			</p>
 		</div>
 	</div>
 
 	<!-- Footer -->
-	<div>
-		<p class="text-center font-mono text-[10px] text-neutral-300 mb-3">
+	<footer>
+		<p class="text-center font-mono text-xs text-neutral-500 mb-2">
 			&copy; 2026 Karan Chawla
 		</p>
-		<div class="dither-footer h-6 sm:h-8 w-full"></div>
-	</div>
+		<p class="text-center font-mono text-xs text-neutral-400 mb-3">
+			Supported by
+			<a
+				href="https://x.com/finnbags"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="wavy-link"
+			>
+				Finn
+			</a>
+			and
+			<a
+				href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="wavy-link"
+			>
+				Bags.fm
+			</a>
+		</p>
+		<div class="dither-footer h-6 sm:h-8 w-full" aria-hidden="true"></div>
+	</footer>
 </main>
 
 <style>
@@ -58,6 +84,27 @@
 
 	.title {
 		color: oklch(0.476 0.296 265);
+	}
+
+	.wavy-link {
+		color: oklch(0.476 0.296 265 / 0.7);
+		text-decoration: underline;
+		text-decoration-style: wavy;
+		text-decoration-color: oklch(0.476 0.296 265 / 0.5);
+		text-underline-offset: 2px;
+		transition: color 0.15s ease, text-decoration-color 0.15s ease;
+	}
+
+	.wavy-link:hover,
+	.wavy-link:focus-visible {
+		color: oklch(0.476 0.296 265);
+		text-decoration-color: oklch(0.476 0.296 265 / 0.8);
+	}
+
+	.wavy-link:focus-visible {
+		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
+		outline-offset: 2px;
+		border-radius: 2px;
 	}
 
 	.dither-footer {
