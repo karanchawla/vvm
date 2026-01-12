@@ -65,3 +65,26 @@
 	--font-sans: 'Sohne', system-ui, sans-serif;
 	--font-mono: 'Sohne Mono', ui-monospace, monospace;
 }
+
+/* Link styles */
+a {
+	color: oklch(0.476 0.296 265 / 0.7);
+	text-decoration: underline;
+	text-decoration-style: wavy;
+	text-decoration-color: oklch(0.476 0.296 265 / 0.5);
+	text-decoration-skip-ink: none;
+	text-underline-offset: 2px;
+	transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+a:hover,
+a:focus-visible {
+	color: oklch(0.476 0.296 265);
+	text-decoration-color: oklch(0.476 0.296 265 / 0.8);
+}
+
+a:focus-visible {
+	outline: 2px solid oklch(0.476 0.296 265 / 0.5);
+	outline-offset: 2px;
+	border-radius: 2px;
+}

@@ -58,7 +58,6 @@
 				href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="wavy-link"
 			>
 				$VVM
 			</a>
@@ -67,7 +66,6 @@
 				href="https://x.com/BagsApp"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="wavy-link"
 			>
 				BagsApp
 			</a>
@@ -84,27 +82,6 @@
 
 	.title {
 		color: oklch(0.476 0.296 265);
-	}
-
-	.wavy-link {
-		color: oklch(0.476 0.296 265 / 0.7);
-		text-decoration: underline;
-		text-decoration-style: wavy;
-		text-decoration-color: oklch(0.476 0.296 265 / 0.5);
-		text-underline-offset: 2px;
-		transition: color 0.15s ease, text-decoration-color 0.15s ease;
-	}
-
-	.wavy-link:hover,
-	.wavy-link:focus-visible {
-		color: oklch(0.476 0.296 265);
-		text-decoration-color: oklch(0.476 0.296 265 / 0.8);
-	}
-
-	.wavy-link:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
-		outline-offset: 2px;
-		border-radius: 2px;
 	}
 
 	.dither-footer {
