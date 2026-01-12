@@ -25,16 +25,16 @@
 			: 'opacity-0'}"
 	>
 		<div class="text-center">
-			<h1 class="title font-mono text-lg sm:text-xl md:text-2xl tracking-wider mb-5">
-				VIBE VIRTUAL MACHINE
+			<h1 class="title font-display text-2xl sm:text-3xl md:text-4xl tracking-wide mb-5 font-light leading-tight">
+				Vibe Virtual Machine
 			</h1>
 
-			<p class="font-mono text-xs sm:text-sm tracking-wide text-neutral-500">
+			<p class="font-sans text-sm sm:text-base tracking-wide text-neutral-500 leading-relaxed">
 				The protocol for intelligence
 			</p>
 
 			<p
-				class="mt-12 font-mono text-xs tracking-widest uppercase text-neutral-400 flex items-center justify-center"
+				class="mt-12 font-mono text-xs tracking-wider uppercase text-neutral-400 flex items-center justify-center"
 			>
 				<span>Coming Soon</span>
 				<span
@@ -49,10 +49,10 @@
 
 	<!-- Footer -->
 	<footer>
-		<p class="text-center font-mono text-xs text-neutral-500 mb-2">
+		<p class="text-center font-mono text-xs text-neutral-500 mb-2 leading-normal">
 			&copy; 2026 Karan Chawla
 		</p>
-		<p class="text-center font-mono text-xs text-neutral-400 mb-3">
+		<p class="text-center font-mono text-xs text-neutral-400 mb-3 leading-normal">
 			Supported by
 			<a
 				href="https://x.com/finnbags"
