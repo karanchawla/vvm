@@ -55,21 +55,21 @@
 		<p class="text-center font-mono text-xs text-neutral-400 mb-3 leading-normal">
 			Supported by
 			<a
-				href="https://x.com/finnbags"
-				target="_blank"
-				rel="noopener noreferrer"
-				class="wavy-link"
-			>
-				Finn
-			</a>
-			and
-			<a
 				href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
 				target="_blank"
 				rel="noopener noreferrer"
 				class="wavy-link"
 			>
-				Bags.fm
+				$VVM
+			</a>
+			on
+			<a
+				href="https://x.com/BagsApp"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="wavy-link"
+			>
+				BagsApp
 			</a>
 		</p>
 		<div class="dither-footer h-6 sm:h-8 w-full" aria-hidden="true"></div>
