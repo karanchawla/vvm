@@ -31,79 +31,64 @@
 
 <svelte:head>
 	<title>About - VVM</title>
-	<meta name="description" content="Learn about VVM - the programming language for AI agents. Understand how language models become universal simulators and why VVM treats this seriously." />
+	<meta name="description" content="VVM is a programming language for AI agents. Learn how language models become runtimes and why that changes everything." />
 </svelte:head>
 
 <article class="about-page py-12 sm:py-16 px-4 sm:px-6">
 	<div class="max-w-2xl mx-auto">
 		<!-- Hero -->
 		<header class="mb-16">
-			<h1 class="page-title font-display text-3xl sm:text-4xl md:text-5xl tracking-wide font-light leading-tight">
-				About VVM
-			</h1>
+			<div class="prose">
+				<p>You've been programming a computer without realizing it.</p>
+				<p>Every time you use Claude Code, Cursor, or Codex, you're instructing a machine that can read files, write code, execute commands, and iterate on its own outputs. That's not an assistant. That's a general-purpose computer that understands meaning.</p>
+				<p>We've been programming it with chat messages. That works until it doesn't.</p>
+			</div>
 		</header>
 
-		<!-- The Accidental Computer -->
+		<!-- When English Breaks Down -->
 		<section class="content-section">
 			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
-				The Accidental Computer
+				When English Breaks Down
 			</h2>
 			<div class="prose">
-				<p>We gave language models access to tools. File systems, code execution, web browsers. We wanted to make them more useful. What we got was a computer.</p>
-				<p>A model with a code executor and the ability to iterate on its own outputs is Turing complete. It can compute anything computable. The outputs aren't hypothetical: actual files on disk, actual commits pushed, actual tests run.</p>
-				<p class="emphasis">We built a general-purpose computer by accident. VVM is the programming language for it.</p>
+				<p>Simple tasks are fine. "Refactor this function" needs no specification.</p>
+				<p>Complex tasks fall apart. You want three analyses to run in parallel, feed into a synthesis, retry on failure, and only proceed if the output meets a quality bar. You can say that in English. But which parts are instructions and which are suggestions? What happens if you're ambiguous about the retry logic? The model will do something. It might not be what you meant.</p>
+				<p class="emphasis">English handles intent. It can't handle structure.</p>
 			</div>
 		</section>
 
-		<!-- Simulators All the Way Down -->
+		<!-- The model is the runtime -->
 		<section class="content-section">
 			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
-				Simulators All the Way Down
+				The Model Is the Runtime
 			</h2>
 			<div class="prose">
-				<p>Language models are trained to predict text. But prediction, at sufficient fidelity, becomes something else.</p>
-				<p>Give a model a detailed specification and ask it to respond as that system would. The model doesn't look up how similar systems behave. It <em>runs</em> the specification. Simulation, pushed far enough, stops being simulation.</p>
-				<p>When Claude Code refactors your codebase, the files actually change. When it opens a pull request, the PR exists. The boundary between "simulating work" and "doing work" has dissolved.</p>
-				<p>VVM treats this seriously. A <code>.vvm</code> program handed to a capable model doesn't get described. It gets executed. The model becomes the virtual machine. Nodes spawn real subagents. Outputs are real artifacts. Errors need real handling.</p>
+				<p>VVM is a programming language for AI sessions.</p>
+				<p>You write a program. You hand it to the model. The model becomes the runtime.</p>
+				<p>This inverts the usual pattern. Frameworks like LangChain put the orchestration in your code and treat the model as a function to call. VVM puts the orchestration inside the model. The intelligence doesn't just execute steps—it interprets the program, manages dependencies, and makes decisions about how to proceed.</p>
+				<p class="emphasis">That's not just cleaner architecture. It enables something new.</p>
 			</div>
 		</section>
 
-		<!-- The Inversion -->
+		<!-- Semantic Predicates -->
 		<section class="content-section">
 			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
-				The Inversion
+				Predicates That Understand
 			</h2>
 			<div class="prose">
-				<p>Conventional agent frameworks orchestrate from outside. Your Python calls the model, parses the output, decides what to do next, calls it again. The locus of control sits in your application code. The model is a function you invoke.</p>
-				<p>VVM inverts this. Hand the program to the model and the model becomes the runtime, parsing dependencies, spawning subagents, managing context. The locus of control moves inside the intelligence itself.</p>
-				<p>This enables something external orchestration cannot do: semantic predicates.</p>
-				<p>When control lives outside, branching conditions must be computable by your code. So you write <code>if confidence_score > 0.8</code>. A proxy metric. An attempt to operationalize "is this good enough?" into a boolean your orchestrator can evaluate. The proxy is always lossy. "Production ready" is a gestalt judgment. Reducing it to a threshold discards most of the signal.</p>
-				<p>When control lives inside the model, predicates can be semantic directly. "Is this production ready?" becomes a question the runtime answers by reading and judging. No proxy required. The runtime operates in semantic space natively. VVM lets you write programs that do too.</p>
+				<p>When orchestration lives in your Python, branching conditions must be things Python can compute. So you write <code>if confidence_score > 0.8</code>—a proxy metric, trying to capture "is this good enough?" in a number.</p>
+				<p>When orchestration lives in the model, conditions can be semantic. "Is this production ready?" isn't a threshold. It's a question the runtime can answer by reading and judging. The model operates in meaning-space. Now your programs can too.</p>
 			</div>
 		</section>
 
-		<!-- The Precision Problem -->
+		<!-- Open Standard -->
 		<section class="content-section">
 			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
-				The Precision Problem
+				Open Standard
 			</h2>
 			<div class="prose">
-				<p>English handles intent beautifully. It collapses under structural pressure.</p>
-				<p>"Analyze this and summarize the key points" is clear. But which parts run concurrently? What counts as done? If step three fails, does step four run? How many retries? What's "good enough" to proceed?</p>
-				<p>These questions have answers in your head. They don't survive the trip through natural language.</p>
-				<p>VVM separates concerns: structure expressed structurally, intent left as natural language. Unambiguous where ambiguity hurts, flexible where rigidity would.</p>
-			</div>
-		</section>
-
-		<!-- Open Source -->
-		<section class="content-section">
-			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
-				Open Source. No Lock-In.
-			</h2>
-			<div class="prose">
-				<p>VVM is open source. The spec is public. Your programs are yours.</p>
-				<p>We think infrastructure wants to be shared. Proprietary orchestration locks you into a vendor's model, tools, and roadmap. VVM programs are portable. Any runtime that implements the spec can execute them.</p>
-				<p class="emphasis">Lock-in should come from capability, not format.</p>
+				<p>VVM is open source.</p>
+				<p>Today that's Claude Code. Codex, Amp, and OpenCode are planned. The language is runtime-agnostic by design.</p>
 			</div>
 		</section>
 
