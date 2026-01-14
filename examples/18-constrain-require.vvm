@@ -1,0 +1,50 @@
+# VVM Example 18: Constrain and Require
+# Enforcing quality constraints on outputs
+
+agent pr_writer(model="opus", prompt="Write professional press releases.")
+agent editor(model="sonnet", prompt="Edit and improve content.")
+
+# Company announcement to draft
+announcement = {
+  type: "product_launch",
+  product: "CloudSync Pro",
+  features: ["real-time sync", "end-to-end encryption", "offline mode"],
+  launch_date: "2024-03-15"
+}
+
+# Generate initial press release
+draft = @pr_writer `Write a press release for: {announcement}`(announcement)
+
+# constrain block validates output against requirements
+# If any require fails, the value becomes a constraint_violation error
+# attempts: retry up to 3 times if constraints fail
+# time: give up after 5 minutes total
+constrain draft(attempts=3, time="5m"):
+  require ?`includes company boilerplate at the end`
+  require ?`has a compelling headline`
+  require ?`mentions all product features`
+  require ?`includes launch date`
+  require ?`no hyperbolic claims like "revolutionary" or "game-changing"`
+  require ?`under 500 words`
+
+# Handle constraint violations
+match draft:
+  case error(kind="constraint_violation"):
+    # Some requirements weren't met even after retries
+    violations = draft.error.data.violations
+    original = draft.error.data.value
+
+    # Try to fix manually
+    draft = @editor `Fix these issues in this press release.
+Issues: {violations}
+Content: {original}`(pack(original, violations))
+
+  case error(_):
+    # Some other error
+    draft = { status: "failed", error: draft }
+
+  case _:
+    # Success - all constraints satisfied
+    pass
+
+export draft

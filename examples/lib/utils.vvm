@@ -1,0 +1,13 @@
+# Utility module with reusable blocks
+
+export { count_words, summarize }
+
+@analyzer = { model: haiku }
+
+count_words(text) = {
+  @analyzer `Count the words in this text and return just the number: {text}`
+}
+
+summarize(text) = {
+  @analyzer `Summarize in one sentence: {text}`
+}

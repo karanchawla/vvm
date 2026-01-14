@@ -1,0 +1,54 @@
+# VVM Example 13: Skill Imports
+# Importing external skills and setting permissions
+# This demonstrates the "Augmented LLM" pattern from Anthropic
+
+# Import skills from the Anthropic skill registry
+import "web-search" from "github:anthropic/skills"
+
+# Define a fact-checker agent with web search capability
+agent fact_checker(
+  model="sonnet",
+  prompt="Verify claims by searching for authoritative sources. Cite your sources.",
+  skills=["web-search"],
+  permissions=perm(network="allow"),
+)
+
+# Claims to verify
+claims = [
+  "The Great Wall of China is visible from space with the naked eye.",
+  "Humans only use 10% of their brain.",
+  "Lightning never strikes the same place twice.",
+]
+
+# Verify each claim
+def verify_claim(claim):
+  result = @fact_checker `Verify this claim and cite sources: {claim}`(claim)
+  return {
+    claim: claim,
+    verification: result,
+    is_true: ?`verified as true or mostly true`(result)
+  }
+
+# Check all claims (sequentially for this example)
+verifications = []
+for claim in claims:
+  verification = verify_claim(claim)
+  verifications = verifications + [verification]
+
+# Count results
+true_count = 0
+false_count = 0
+for v in verifications:
+  if v.is_true:
+    true_count = true_count + 1
+  else:
+    false_count = false_count + 1
+
+summary = {
+  total_claims: len(claims),
+  verified_true: true_count,
+  verified_false: false_count,
+  results: verifications
+}
+
+export summary

@@ -1,0 +1,50 @@
+# VVM Example 19: Refine Loop
+# Iterative improvement using the refine helper
+# This demonstrates the "Evaluator-Optimizer" pattern from Anthropic
+
+agent coder(model="sonnet", prompt="Write clean, well-tested code.")
+agent reviewer(model="opus", prompt="Review code critically. Find bugs and issues.")
+
+# Code to review and improve
+initial_code = """
+def calculate_discount(price, discount_percent):
+    return price - (price * discount_percent)
+"""
+
+# The evaluator: check if code passes review
+def passes_review(code, iteration):
+  review = @reviewer `Review this code. List any bugs, edge cases, or improvements needed.
+If the code is production-ready with no issues, respond with "APPROVED".`(code)
+
+  return ?`contains APPROVED with no significant issues listed`(review)
+
+# The optimizer: improve based on feedback
+def apply_feedback(code, iteration):
+  # Get detailed review
+  review = @reviewer `Review this code critically. Focus on:
+1. Bug risks
+2. Edge cases not handled
+3. Missing input validation
+4. Code clarity
+Provide specific, actionable feedback.`(code)
+
+  # Apply the feedback
+  improved = @coder `Improve this code based on the review feedback.
+Code: {code}
+Review: {review}
+
+Fix all issues mentioned. Add tests if appropriate.`(pack(code, review))
+
+  return improved
+
+# refine loops until passes_review returns true or max iterations reached
+# Each iteration: evaluate -> if not done -> improve -> repeat
+final_code = refine(
+  initial_code,
+  max=5,
+  done=passes_review,
+  step=apply_feedback
+)
+
+# The final code should handle edge cases, have validation, etc.
+export final_code

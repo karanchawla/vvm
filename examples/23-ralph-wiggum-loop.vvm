@@ -1,0 +1,90 @@
+# VVM Example 23: Ralph Wiggum Loop
+# Continuous improvement until truly complete
+# This demonstrates the "Autonomous Agent" pattern from Anthropic
+#
+# Named after the Simpsons character, the Ralph Wiggum Loop embodies
+# cheerful persistence: keep trying until success emerges.
+#
+# Key insight: Progress persists in the OUTPUT (files, state), not in
+# the agent's context window. Each iteration sees the current state
+# fresh and decides what to do next.
+
+agent developer(
+  model="opus",
+  prompt="""You are a senior developer building production-ready features.
+When given a project state, identify the single most important next step
+and implement it. Be thorough and systematic."""
+)
+
+agent qa_engineer(
+  model="sonnet",
+  prompt="""You are a QA engineer. Evaluate if this code is truly
+production-ready. Be strict - check for tests, error handling, edge
+cases, documentation, and security."""
+)
+
+# The feature to build
+feature_spec = """
+Build a rate limiter middleware for a REST API:
+- Limit requests per IP address
+- Configurable limits (requests per minute)
+- Return 429 Too Many Requests when exceeded
+- Include proper headers (X-RateLimit-*)
+- Thread-safe implementation
+"""
+
+# Initial implementation
+implementation = @developer `Create an initial implementation for: {feature_spec}`(feature_spec)
+
+# Strict completion check - is this TRULY production-ready?
+def is_production_ready(code, iteration):
+  qa_report = @qa_engineer `Evaluate if this code is production-ready.
+
+Check for:
+1. Complete functionality (all spec requirements met)
+2. Unit tests with good coverage
+3. Error handling for edge cases
+4. Documentation (docstrings, usage examples)
+5. Security considerations
+6. Thread safety
+
+If ALL criteria are met, respond with "PRODUCTION READY".
+Otherwise, list what's missing.`(code)
+
+  return ?`contains "PRODUCTION READY" as the verdict`(qa_report)
+
+# Improvement step - fix the most important gap
+def improve(code, iteration):
+  # Get detailed feedback
+  qa_report = @qa_engineer `What is the single most critical issue with this code?`(code)
+
+  # Make one focused improvement
+  return @developer `Improve this code by addressing the most critical issue.
+
+Current code:
+{code}
+
+Issue to fix:
+{qa_report}
+
+Make exactly ONE focused improvement. Show your work.`(pack(code, qa_report))
+
+# The Ralph Wiggum Loop
+# - High max iterations (50) allows thorough completion
+# - Each iteration: evaluate -> if not done -> improve -> repeat
+# - Progress accumulates in the code itself, not in context
+final_implementation = refine(
+  implementation,
+  max=50,
+  done=is_production_ready,
+  step=improve
+)
+
+# Final validation gate
+constrain final_implementation():
+  require ?`has working implementation matching spec`
+  require ?`includes comprehensive unit tests`
+  require ?`has docstrings and usage examples`
+  require ?`handles edge cases gracefully`
+
+export final_implementation

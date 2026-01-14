@@ -1,0 +1,12 @@
+# VVM Example 01: Hello World
+# The simplest possible VVM program
+
+# Define an agent with a model and system prompt
+agent writer(model="haiku", prompt="You write concise, witty commit messages.")
+
+# Call the agent with a task - result is bound to `message`
+# The `(())` passes an empty input since we don't need one here
+message = @writer `Write a commit message for fixing a typo in the README.`(())
+
+# Export makes this value available as program output
+export message

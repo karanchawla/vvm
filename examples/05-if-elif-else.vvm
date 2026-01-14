@@ -1,0 +1,37 @@
+# VVM Example 05: If/Elif/Else
+# Conditional branching with semantic predicates and boolean logic
+
+post = {
+  author: "user_12345",
+  content: "Check out this amazing investment opportunity! Guaranteed 500% returns!",
+  reported_count: 3
+}
+
+# Evaluate multiple conditions
+is_spam = ?`promotional spam or scam`(post)
+is_harmful = ?`contains hate speech, threats, or harassment`(post)
+is_low_quality = ?`low effort or off-topic`(post)
+has_reports = post.reported_count > 2
+
+# Use if/elif/else for multi-way branching
+# Conditions can combine semantic predicates with regular boolean logic
+if is_harmful:
+  decision = "remove"
+  reason = "violates community guidelines"
+elif is_spam or (is_low_quality and has_reports):
+  decision = "flag_for_review"
+  reason = "potential spam or quality issue"
+elif has_reports and not is_low_quality:
+  decision = "monitor"
+  reason = "multiple reports but content seems acceptable"
+else:
+  decision = "approve"
+  reason = "no issues detected"
+
+result = {
+  post_id: post.author,
+  decision: decision,
+  reason: reason
+}
+
+export result

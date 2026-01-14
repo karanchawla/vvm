@@ -1,0 +1,38 @@
+# VVM Example 14: Module Imports
+# Importing functions and agents from other VVM files
+
+# Import a function from another module
+from "./team-agents.vvm" import process_ticket
+
+# Import an agent definition (note the @ prefix)
+from "./team-agents.vvm" import @senior_engineer
+
+# Import with alias for clarity
+from "./team-agents.vvm" import triage as triage_ticket
+
+# See team-agents.vvm for the module definition
+
+# Use imported function
+ticket = {
+  id: "BUG-1234",
+  title: "Login fails with SSO enabled",
+  description: "Users report 500 error when using SAML SSO authentication."
+}
+
+# Use the imported triage function (aliased)
+is_critical = triage_ticket(ticket)
+
+# Use the imported process_ticket function
+resolution = process_ticket(ticket)
+
+# Use the imported agent directly
+technical_review = @senior_engineer `Review this fix for security implications.`(resolution)
+
+result = {
+  ticket_id: ticket.id,
+  is_critical: is_critical,
+  resolution: resolution,
+  review: technical_review
+}
+
+export result

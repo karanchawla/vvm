@@ -1,0 +1,37 @@
+# Refinement loop: iterate until quality constraints are met
+# Uses done() to exit, continue() to keep iterating
+
+export { final }
+
+@writer = { model: opus }
+@critic = { model: opus }
+
+# Initial draft
+draft = @writer `Write a haiku about programming`
+
+# Declare what "good" means
+constrain draft {
+  exactly_three_lines
+  follows_5_7_5_syllable_pattern
+}
+
+# Iterate up to 3 times
+final = refine(max: 3, seed: draft) {
+  current is {
+    # Exit condition
+    valid_haiku => done(current)
+
+    # Constraint failed - get feedback and retry
+    error(kind: "constraint_violation") => {
+      feedback = @critic `Check syllable count (5-7-5) and identify issues` <- current
+      improved = @writer `Fix the haiku based on this feedback` <- pack { current, feedback }
+      continue(improved)
+    }
+
+    # General improvement
+    _ => {
+      improved = @writer `Improve this haiku` <- current
+      continue(improved)
+    }
+  }
+}

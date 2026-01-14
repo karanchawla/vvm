@@ -1,0 +1,22 @@
+{
+    "name": "vvm",
+    "description": "VVM (Vibe Virtual Machine) - The protocol for intelligence",
+    "version": "0.0.1",
+    "author": {
+        "name": "Karan Chawla",
+        "url": "https://github.com/karanchawla/vvm"
+    },
+    "repository": "https://github.com/karanchawla/vvm",
+    "keywords": [
+        "ai",
+        "agents",
+        "orchestration",
+        "dsl",
+        "vvm",
+        "workflow",
+        "multi-agent",
+        "llm",
+        "agentic"
+    ],
+    "license": "MIT"
+}

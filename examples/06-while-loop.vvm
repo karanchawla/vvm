@@ -1,0 +1,44 @@
+# VVM Example 06: While Loop
+# Iterating until a condition is met, with safety bounds
+
+agent shortener(model="haiku", prompt="You shorten text while preserving meaning.")
+
+original = """
+We are absolutely thrilled to announce that our company has successfully
+completed the strategic acquisition of TechStartup Inc., a pioneering
+innovator in the artificial intelligence and machine learning space.
+This transformative milestone marks a significant step forward in our
+long-term vision to expand our technological capabilities and market
+presence. The acquisition brings together two industry leaders with
+complementary strengths, creating unprecedented opportunities for
+innovation and growth. We look forward to welcoming the talented
+TechStartup team and working together to deliver cutting-edge solutions
+that will revolutionize how businesses leverage AI technology.
+"""
+
+max_length = 280  # Tweet limit
+max_attempts = 5
+attempt = 0
+text = original
+
+# Loop until text is short enough OR we hit max attempts
+while len(text) > max_length and attempt < max_attempts:
+  text = @shortener `Shorten this to under {max_length} characters while
+keeping the key message: {text}`(text)
+  attempt = attempt + 1
+
+# Check if we succeeded
+if len(text) <= max_length:
+  status = "success"
+else:
+  status = "gave_up"
+
+result = {
+  original_length: len(original),
+  final_length: len(text),
+  attempts: attempt,
+  status: status,
+  text: text
+}
+
+export result

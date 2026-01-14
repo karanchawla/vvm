@@ -1,0 +1,31 @@
+# VVM Example 07: For Loop
+# Iterating over collections with for loops
+
+agent extractor(model="haiku", prompt="Extract structured data from receipts accurately.")
+
+# A batch of expense receipts to process
+receipts = [
+  "Uber ride from SFO to downtown - $47.50 on 2024-01-15",
+  "Team lunch at Pizzeria Delfina - $186.00 on 2024-01-15",
+  "Office supplies from Staples - $34.99 on 2024-01-16",
+  "Client dinner at Boulevard - $312.45 on 2024-01-17"
+]
+
+# Process each receipt
+expenses = []
+for receipt in receipts:
+  extracted = @extractor `Extract: vendor, amount, date, category from: {receipt}`(receipt)
+  expenses = expenses + [extracted]
+
+# Calculate totals by iterating with index using range()
+total = 0.0
+for i in range(len(expenses)):
+  total = total + expenses[i].amount
+
+summary = {
+  receipt_count: len(receipts),
+  expenses: expenses,
+  total: total
+}
+
+export summary

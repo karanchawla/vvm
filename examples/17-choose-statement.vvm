@@ -1,0 +1,48 @@
+# VVM Example 17: Choose Statement
+# AI-selected branching based on semantic criteria
+# This demonstrates the "Routing" pattern from Anthropic
+
+agent sales_bot(model="sonnet", prompt="You are a helpful sales assistant.")
+agent support_bot(model="sonnet", prompt="You resolve technical issues efficiently.")
+agent billing_bot(model="haiku", prompt="You handle billing questions quickly.")
+agent feedback_collector(model="haiku", prompt="You collect and categorize feedback.")
+
+# Incoming customer message
+message = {
+  customer_id: "cust_789",
+  channel: "chat",
+  text: "Hi, I'm interested in upgrading to the enterprise plan but have some questions about SSO integration first."
+}
+
+# choose lets the VM decide which branch to take based on semantic analysis
+# The criterion describes what to evaluate
+choose message by ?`customer intent and urgency` as intent:
+  option "sales":
+    # Sales inquiry - warm lead
+    response = @sales_bot `Help this customer with their purchase decision: {message.text}`(message)
+    route = "sales-queue"
+
+  option "support":
+    # Technical support needed
+    response = @support_bot `Resolve this technical issue: {message.text}`(message)
+    route = "support-queue"
+
+  option "billing":
+    # Billing question
+    response = @billing_bot `Answer this billing question: {message.text}`(message)
+    route = "billing-queue"
+
+  option "feedback":
+    # General feedback
+    response = @feedback_collector `Collect and categorize this feedback: {message.text}`(message)
+    route = "feedback-queue"
+
+# The `intent` variable now contains the chosen option name ("sales", "support", etc.)
+result = {
+  customer_id: message.customer_id,
+  detected_intent: intent,
+  routed_to: route,
+  response: response
+}
+
+export result

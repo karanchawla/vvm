@@ -1,0 +1,11 @@
+# Modules: import reusable blocks from other files
+
+import utils from "./lib/utils.vvm"
+
+export { word_count, result }
+
+text = "The quick brown fox jumps over the lazy dog"
+
+# Use imported blocks
+word_count = utils.count_words(text)
+result = utils.summarize(text)

@@ -1,0 +1,18 @@
+# Team Agents Module
+# Shared agents and functions for ticket processing
+# This module is imported by 14-module-imports.vvm
+
+agent senior_engineer(
+  model="opus",
+  prompt="Expert software engineer with 10+ years experience."
+)
+
+def process_ticket(ticket):
+  return @senior_engineer `Analyze and resolve: {ticket}`(ticket)
+
+def triage(ticket):
+  return ?`critical severity`(ticket)
+
+export @senior_engineer
+export process_ticket
+export triage

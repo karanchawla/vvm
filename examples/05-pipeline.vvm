@@ -1,0 +1,30 @@
+# Pipeline: functional combinators for collections
+# parallel_map runs concurrently, filter selects, reduce combines
+
+export { final }
+
+@writer = { model: opus }
+
+items = ["apple", "banana", "cherry"]
+
+# Block: transform one item
+describe(item) = {
+  @writer `Write one sentence describing a {item}`
+}
+
+# Block: check quality (returns boolean via predicate)
+is_good(description) = {
+  ?(descriptive, not_boring) <- description
+}
+
+# Block: combine two items
+combine(acc, item) = {
+  @writer `Combine these two sentences into one` <- pack { acc, item }
+}
+
+# Pipeline execution
+final =
+  items
+  |> parallel_map(describe)   # 3 descriptions, generated in parallel
+  |> filter(is_good)          # keep only good ones
+  |> reduce(combine)          # merge into single output

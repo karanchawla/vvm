@@ -1,0 +1,40 @@
+# VVM Example 08: With Input
+# Scoped context passing using the `it` keyword
+
+agent analyst(model="sonnet", prompt="You analyze contracts for risks and issues.")
+
+contract = """
+SERVICE AGREEMENT
+
+Term: 24 months, auto-renews unless cancelled 90 days prior.
+Payment: Net-60, with 18% late fee compounding monthly.
+Liability: Provider liability capped at fees paid in prior 12 months.
+IP: All work product owned by Provider until final payment received.
+Termination: Provider may terminate with 30 days notice; Client requires
+90 days notice plus payment of remaining term.
+Jurisdiction: Disputes resolved in Provider's home jurisdiction.
+"""
+
+# The `with` block sets `it` to refer to the contract
+# Every agent call in this block implicitly receives `it` as context
+with input contract:
+  # These calls don't need to pass the contract explicitly
+  payment_risks = @analyst `What are the payment term risks?`(it)
+  ip_concerns = @analyst `What IP ownership concerns exist?`(it)
+  termination_issues = @analyst `Is the termination clause balanced?`(it)
+  jurisdiction_flag = ?`jurisdiction clause favors one party significantly`(it)
+
+  # Nested with block for deeper analysis
+  with input payment_risks:
+    payment_severity = ?`high financial risk`(it)
+
+# Outside the `with` block, `it` is no longer bound
+analysis = {
+  payment: payment_risks,
+  payment_high_risk: payment_severity,
+  ip: ip_concerns,
+  termination: termination_issues,
+  jurisdiction_biased: jurisdiction_flag
+}
+
+export analysis

@@ -1,0 +1,19 @@
+# Semantic matching: route based on semantic properties of a value
+# The VM evaluates tags like "controversial" or "straightforward" semantically
+
+export { result }
+
+@writer = { model: opus }
+@careful_writer = { model: opus, style: "nuanced, consider multiple perspectives" }
+
+topic = "pineapple on pizza"
+
+draft = @writer `Write a short opinion on: {topic}`
+
+# Match on semantic tags - VM evaluates these
+result = draft is {
+  controversial, needs_balance => @careful_writer `Rewrite to be more balanced` <- draft
+  offensive => @careful_writer `Rewrite to be respectful` <- draft
+  clear, well_reasoned => draft
+  _ => @writer `Clarify and expand this draft` <- draft
+}

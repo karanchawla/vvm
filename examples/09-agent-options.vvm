@@ -1,0 +1,39 @@
+# VVM Example 09: Agent Options
+# Using retry, timeout, and backoff for reliability
+
+agent api_caller(model="sonnet", prompt="Parse API responses accurately.")
+agent fallback(model="haiku", prompt="Provide cached or default responses.")
+
+# Calling a flaky third-party API
+request = {
+  endpoint: "https://api.weather.gov/points/37.7749,-122.4194",
+  query: "forecast"
+}
+
+# retry=3 means try up to 4 times total (1 initial + 3 retries)
+# timeout limits how long each attempt can take
+# backoff controls delay between retries (exponential = 1s, 2s, 4s, ...)
+# name provides a label for logging and tracing
+result = @api_caller `Fetch weather data from {request.endpoint}`(
+  request,
+  retry=3,
+  timeout="30s",
+  backoff="exponential",
+  name="weather-api-call"
+)
+
+# Always handle potential errors from unreliable services
+match result:
+  case error(kind="timeout"):
+    # API took too long - use cached data
+    result = @fallback `Return cached weather for San Francisco.`(request)
+  case error(kind="rejected"):
+    # Rate limited or auth failed
+    result = { status: "unavailable", message: "API rejected request" }
+  case error(_):
+    # Network error, parse error, etc.
+    result = @fallback `Return generic weather response.`(request)
+  case _:
+    pass  # Success - keep result as-is
+
+export result

@@ -1,0 +1,25 @@
+# Error handling: try/catch/finally for robust flows
+# Errors are values, can be matched with is{}
+
+export { result }
+
+@worker = { model: opus }
+@backup = { model: haiku }
+
+result = try {
+  # This might fail
+  output = @worker `Solve: what is 1/0?`
+  output
+
+} catch as err {
+  # Handle different error types
+  err is {
+    error(kind: "invalid") => @backup `Explain why this is undefined`
+    error(kind: "timeout") => @backup `Provide a quick fallback answer`
+    _ => { error: { kind: "unhandled", original: err } }
+  }
+
+} finally {
+  # Always runs
+  @backup `Log: computation attempted`
+}

@@ -1,0 +1,12 @@
+# VVM Example 02: Simple Agent Call
+# Passing input to an agent using string interpolation
+
+agent explainer(model="sonnet", prompt="Explain concepts simply, as if to a five-year-old.")
+
+# Variables can be interpolated into prompts with {variable}
+topic = "kubernetes"
+
+# The topic variable is passed as input AND interpolated into the prompt
+explanation = @explainer `Explain {topic} using a simple analogy.`(topic)
+
+export explanation

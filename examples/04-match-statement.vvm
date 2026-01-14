@@ -1,0 +1,37 @@
+# VVM Example 04: Match Statement
+# Pattern matching with semantic conditions for routing
+
+# Incoming support ticket
+ticket = {
+  id: "TKT-4821",
+  message: "I was charged twice for my subscription last month",
+  customer_tier: "premium"
+}
+
+# Match routes based on semantic understanding of the ticket
+# First matching case wins
+match ticket:
+  case ?`billing, payment, or refund issue`:
+    team = "billing"
+    priority = "high"
+  case ?`account access or login problem`:
+    team = "security"
+    priority = "urgent"
+  case ?`bug report or technical error`:
+    team = "engineering"
+    priority = "medium"
+  case ?`feature request or suggestion`:
+    team = "product"
+    priority = "low"
+  case _:
+    # Wildcard catches everything else
+    team = "general-support"
+    priority = "medium"
+
+assignment = {
+  ticket_id: ticket.id,
+  assigned_team: team,
+  priority: priority
+}
+
+export assignment

@@ -1,0 +1,18 @@
+# Fan-out/fan-in: nodes with independent dependencies run in parallel
+# strengths and weaknesses both depend only on research, so they run concurrently
+
+export { summary }
+
+@analyst = { model: opus }
+
+topic = "the Turing test"
+
+# Step 1: Single starting point
+research = @analyst `Write a 2-paragraph explanation of {topic}`
+
+# Step 2: These two run IN PARALLEL (both depend only on research)
+strengths = @analyst `List 3 strengths of this concept` <- research
+weaknesses = @analyst `List 3 weaknesses of this concept` <- research
+
+# Step 3: Fan-in - waits for both parallel branches
+summary = @analyst `Combine these into a balanced 1-paragraph summary` <- pack { strengths, weaknesses }

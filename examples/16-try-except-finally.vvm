@@ -1,0 +1,40 @@
+# VVM Example 16: Try/Except/Finally
+# Exception handling with guaranteed cleanup
+
+agent logger(model="haiku", prompt="Log events concisely.")
+
+# Demonstrates: try block, explicit raise, except handler, finally cleanup
+
+# Simulate a resource that needs cleanup
+resource_acquired = false
+
+try:
+  # Acquire resource
+  resource_acquired = true
+  @logger `Resource acquired.`(())
+
+  # Simulate a flaky operation - 70% chance of failure
+  choose resource_acquired by ?`simulate flaky operation: 70% failure, 30% success` as outcome:
+    option "failure":
+      raise "Operation failed: connection reset"
+    option "success":
+      result = "Operation completed successfully"
+
+except as err:
+  # Handle the exception
+  @logger `Caught exception: {err}`(err)
+  result = "Operation failed but handled gracefully"
+
+finally:
+  # Always runs - cleanup the resource
+  if resource_acquired:
+    @logger `Releasing resource (finally block).`(())
+    resource_acquired = false
+
+# Show that finally ran regardless of outcome
+final_state = {
+  result: result,
+  resource_released: not resource_acquired
+}
+
+export final_state

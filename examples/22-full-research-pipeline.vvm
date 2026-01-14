@@ -1,0 +1,115 @@
+# VVM Example 22: Full PR Review Pipeline
+# A complete multi-agent workflow for code review
+# This demonstrates the "Prompt Chaining" pattern from Anthropic
+
+# Define specialized review agents
+agent diff_analyzer(
+  model="sonnet",
+  prompt="Analyze code diffs for changes and their implications."
+)
+
+agent security_reviewer(
+  model="opus",
+  prompt="Security expert. Find vulnerabilities and security issues."
+)
+
+agent perf_reviewer(
+  model="sonnet",
+  prompt="Performance expert. Identify bottlenecks and optimization opportunities."
+)
+
+agent style_reviewer(
+  model="haiku",
+  prompt="Check code style, naming conventions, and readability."
+)
+
+agent summarizer(
+  model="opus",
+  prompt="Synthesize multiple reviews into actionable feedback."
+)
+
+# PR Review Pipeline
+def review_pr(pr):
+  # Phase 1: Analyze the diff
+  diff_analysis = @diff_analyzer `Analyze this PR diff. Identify:
+- What changed
+- Why it might have changed
+- Potential impact areas
+
+PR: {pr}`(pr)
+
+  # Phase 2: Parallel specialized reviews (fan-out)
+  def security_check(context):
+    return @security_reviewer `Review for security issues: {context}`(context)
+
+  def perf_check(context):
+    return @perf_reviewer `Review for performance issues: {context}`(context)
+
+  def style_check(context):
+    return @style_reviewer `Review code style: {context}`(context)
+
+  # Run all reviews concurrently
+  review_context = pack(pr, diff_analysis)
+  reviews = pmap(
+    [security_check, perf_check, style_check],
+    lambda check_fn: check_fn(review_context)
+  )
+
+  security_review = reviews[0]
+  perf_review = reviews[1]
+  style_review = reviews[2]
+
+  # Phase 3: Synthesize reviews (fan-in)
+  summary = @summarizer `Synthesize these code reviews into a single PR review comment.
+
+Security Review:
+{security_review}
+
+Performance Review:
+{perf_review}
+
+Style Review:
+{style_review}
+
+Provide:
+1. Overall assessment (approve/request changes)
+2. Critical issues (must fix)
+3. Suggestions (nice to have)
+4. Positive feedback (what was done well)`(
+    pack(security_review, perf_review, style_review)
+  )
+
+  # Phase 4: Quality gate
+  constrain summary():
+    require ?`has clear approval recommendation`
+    require ?`lists specific line numbers for issues`
+    require ?`constructive and professional tone`
+
+  return {
+    pr_number: pr.number,
+    diff_summary: diff_analysis,
+    reviews: {
+      security: security_review,
+      performance: perf_review,
+      style: style_review
+    },
+    summary: summary
+  }
+
+# Run the pipeline
+pr = {
+  number: 1234,
+  title: "Add user authentication middleware",
+  diff: """
++ def authenticate(request):
++     token = request.headers.get('Authorization')
++     if not token:
++         return None
++     user = db.query(f"SELECT * FROM users WHERE token='{token}'")
++     return user
+"""
+}
+
+review_result = review_pr(pr)
+
+export review_result

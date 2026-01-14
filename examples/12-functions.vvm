@@ -1,0 +1,57 @@
+# VVM Example 12: Functions
+# Defining and using reusable functions
+
+agent classifier(model="haiku", prompt="Classify emails by intent.")
+agent responder(model="sonnet", prompt="Draft professional email responses.")
+agent prioritizer(model="haiku", prompt="Assess urgency and importance.")
+
+# Simple function
+def classify_email(email):
+  return @classifier `Classify this email: {email}`(email)
+
+# Function with multiple parameters
+def draft_response(email, tone):
+  return @responder `Draft a {tone} response to: {email}`(pack(email, tone))
+
+# Function that composes other functions
+def process_email(email):
+  # Classify first
+  classification = classify_email(email)
+
+  # Determine response tone based on classification
+  if ?`complaint or frustrated customer`(classification):
+    tone = "empathetic and apologetic"
+  elif ?`business inquiry or sales opportunity`(classification):
+    tone = "professional and enthusiastic"
+  else:
+    tone = "friendly and helpful"
+
+  # Generate response
+  response = draft_response(email, tone)
+
+  return {
+    original: email,
+    classification: classification,
+    response: response
+  }
+
+# Functions can return early for validation
+def validate_and_process(email):
+  if not ?`contains actual message content`(email):
+    return { error: "empty_email", message: "No content to process" }
+
+  if ?`automated bounce or out-of-office`(email):
+    return { skipped: true, reason: "automated message" }
+
+  return process_email(email)
+
+# Process an incoming email
+incoming = """
+Subject: Frustrated with your service!
+I've been waiting 3 weeks for my order and nobody responds to my emails.
+This is unacceptable!
+"""
+
+result = validate_and_process(incoming)
+
+export result

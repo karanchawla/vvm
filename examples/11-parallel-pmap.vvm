@@ -1,0 +1,35 @@
+# VVM Example 11: Parallel Execution with pmap
+# Running independent tasks concurrently
+# This demonstrates the "Parallelization (Sectioning)" pattern from Anthropic
+
+agent translator(model="sonnet", prompt="Translate accurately, preserving meaning.")
+
+# Product description to translate for international launch
+product_description = """
+Introducing AirPods Pro 2: Featuring Active Noise Cancellation,
+Adaptive Transparency, and Personalized Spatial Audio.
+"""
+
+# Target languages for the launch
+languages = ["Spanish", "French", "German", "Japanese", "Portuguese"]
+
+# Define what to do for each language
+def translate_to(language):
+  return @translator `Translate to {language}: {product_description}`(
+    pack(language, product_description)
+  )
+
+# pmap runs translate_to for ALL languages concurrently
+# Results are returned in the same order as the input list
+# This is 5x faster than a sequential for loop
+translations = pmap(languages, translate_to)
+
+# pmap is the ONLY way to get parallelism in VVM
+# Sequential calls happen one after another:
+#   a = @translator `Task A.`(())  # Runs first
+#   b = @translator `Task B.`(())  # Runs after a completes
+#   c = @translator `Task C.`(())  # Runs after b completes
+
+# For independent work, always use pmap instead
+
+export translations

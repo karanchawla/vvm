@@ -1,0 +1,39 @@
+# VVM Example 21: Pack Helper
+# Combining multiple values into a named object for synthesis
+
+agent character_gen(model="haiku", prompt="Generate fantasy RPG character elements.")
+agent storyteller(model="sonnet", prompt="Create compelling character backstories.")
+
+# Generate character elements separately
+class_type = @character_gen `Pick a fantasy class: warrior, mage, rogue, or healer.`(())
+species = @character_gen `Pick a fantasy species: elf, dwarf, human, or orc.`(())
+quirk = @character_gen `Pick a personality quirk: always hungry, afraid of chickens, speaks in rhymes, or collects spoons.`(())
+
+# pack() creates a named object from variables
+# Variable names automatically become the keys:
+# pack(class_type, species, quirk) creates:
+# { "class_type": "mage", "species": "dwarf", "quirk": "afraid of chickens" }
+
+character_traits = pack(class_type, species, quirk)
+
+# Use packed data for synthesis (fan-in pattern)
+backstory = @storyteller `Create a short, funny backstory for this character:
+Class: {class_type}
+Species: {species}
+Quirk: {quirk}
+
+Make it 2-3 sentences and explain how the quirk affects their adventuring.`(
+  character_traits
+)
+
+# Can add keyword args for additional fields
+character_sheet = pack(
+  class_type,
+  species,
+  quirk,
+  backstory,
+  level=1,
+  hp=20
+)
+
+export character_sheet

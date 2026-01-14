@@ -1,0 +1,71 @@
+# VVM Example 20: Collection Helpers
+# Using map, filter, reduce, and pmap for batch processing
+# This example also demonstrates "Parallelization (Voting)" pattern
+
+agent sentiment_analyzer(model="haiku", prompt="Analyze sentiment: positive, negative, or neutral.")
+
+# Customer reviews to analyze
+reviews = [
+  "Absolutely love this product! Best purchase I've made.",
+  "It works, but the UI is confusing and documentation is lacking.",
+  "Terrible experience. Crashed twice and lost my data.",
+  "Decent value for the price. Does what it says.",
+  "Outstanding customer support helped me set everything up!"
+]
+
+# map: transform each review sequentially
+def analyze(review):
+  return @sentiment_analyzer `Analyze the sentiment of: {review}`(review)
+
+sentiments = map(reviews, analyze)
+
+# filter: keep only negative reviews for follow-up
+def is_negative(review):
+  return ?`expresses frustration, disappointment, or complaint`(review)
+
+needs_followup = filter(reviews, is_negative)
+
+# reduce: aggregate sentiments into summary
+def tally(acc, sentiment):
+  if ?`positive sentiment`(sentiment):
+    return { positive: acc.positive + 1, negative: acc.negative, neutral: acc.neutral }
+  elif ?`negative sentiment`(sentiment):
+    return { positive: acc.positive, negative: acc.negative + 1, neutral: acc.neutral }
+  else:
+    return { positive: acc.positive, negative: acc.negative, neutral: acc.neutral + 1 }
+
+initial_tally = { positive: 0, negative: 0, neutral: 0 }
+sentiment_counts = reduce(sentiments, tally, init=initial_tally)
+
+# pmap: parallel analysis for speed
+# All reviews analyzed concurrently
+parallel_sentiments = pmap(reviews, analyze)
+
+# Voting pattern: multiple analyses for confidence
+def confident_sentiment(review):
+  # Run 3 independent analyses
+  votes = pmap([1, 2, 3], lambda _: @sentiment_analyzer `Sentiment of: {review}?`(review))
+
+  # Count votes
+  pos = 0
+  neg = 0
+  for vote in votes:
+    if ?`positive`(vote):
+      pos = pos + 1
+    elif ?`negative`(vote):
+      neg = neg + 1
+
+  # Return majority sentiment
+  if pos >= 2:
+    return "positive"
+  elif neg >= 2:
+    return "negative"
+  else:
+    return "neutral"
+
+# Get high-confidence sentiments
+confident_results = map(reviews, confident_sentiment)
+
+export sentiment_counts
+export needs_followup
+export confident_results

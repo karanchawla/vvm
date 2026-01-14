@@ -1,0 +1,73 @@
+# VVM Example 15: Error Values
+# Handling errors as first-class values for graceful degradation
+
+agent backup_api(model="sonnet", prompt="Backup payment processor.")
+agent logger(model="haiku", prompt="Log events concisely.")
+
+payment = {
+  amount: 99.99,
+  currency: "USD",
+  customer_id: "cust_12345"
+}
+
+# Simulate a flaky primary API - realistically weighted toward failures
+# In production, this would be a real @api_agent call that might fail
+choose payment by ?`simulate flaky payment API: 60% timeout, 20% rejected, 10% spawn_failed, 10% success` as outcome:
+  option "timeout":
+    result = { error: { kind: "timeout", message: "Connection timed out" } }
+  option "rejected":
+    result = { error: { kind: "rejected", message: "Card declined" } }
+  option "spawn_failed":
+    result = { error: { kind: "spawn_failed", message: "Service unavailable" } }
+  option "success":
+    result = { transaction_id: "txn_abc123", status: "succeeded", amount: payment.amount }
+
+# Errors are values that can be pattern matched
+# This enables graceful degradation with fallbacks
+match result:
+  case error(kind="timeout"):
+    # Primary timed out - failover to backup
+    @logger `Payment timeout, trying backup.`(payment)
+    result = @backup_api `Process: {payment}`(payment, timeout="15s")
+
+  case error(kind="rejected"):
+    # Payment was rejected (declined card, etc.)
+    @logger `Payment rejected.`(payment)
+    result = {
+      status: "declined",
+      message: "Card declined",
+      retry_allowed: false
+    }
+
+  case error(kind="spawn_failed"):
+    # Agent infrastructure error
+    @logger `Service unavailable.`(payment)
+    result = {
+      status: "error",
+      message: "Try again later",
+      retry_allowed: true
+    }
+
+  case error(e):
+    # Catch-all for unexpected errors
+    @logger `Unexpected error: {e}`(e)
+    result = {
+      status: "error",
+      message: "Unknown error",
+      details: e
+    }
+
+  case _:
+    # Success - log and continue
+    @logger `Payment successful: {result}`(result)
+
+# Final safety check - if backup also failed, return safe default
+if ?`is an error value`(result):
+  result = {
+    status: "failed",
+    message: "All processors unavailable",
+    retry_allowed: true,
+    original_error: result
+  }
+
+export result

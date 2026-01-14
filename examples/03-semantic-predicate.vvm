@@ -1,0 +1,24 @@
+# VVM Example 03: Semantic Predicates
+# Using the `?` operator to evaluate conditions semantically
+
+email = {
+  from: "prince.nigeria@totally-legit.biz",
+  subject: "URGENT: You have inherited $50,000,000",
+  body: "Dear friend, I am a prince who needs your bank details..."
+}
+
+# The `?` operator evaluates a semantic condition locally
+# This doesn't make an agent call - it uses the runtime's understanding
+is_spam = ?`obviously spam or phishing attempt`(email)
+
+# You can combine predicates with boolean operators
+is_suspicious = ?`contains urgent money language`(email) and ?`from unknown sender`(email)
+
+# Use predicates in conditionals
+if is_spam:
+  action = "move_to_spam"
+else:
+  action = "deliver_to_inbox"
+
+export is_spam
+export action

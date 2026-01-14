@@ -1,0 +1,14 @@
+{
+    "name": "vvm",
+    "owner": {
+        "name": "Karan Chawla",
+        "url": "https://github.com/karanchawla/vvm"
+    },
+    "plugins": [
+        {
+            "name": "vvm",
+            "source": "./",
+            "description": "VVM (Vibe Virtual Machine) - The protocol for intelligence"
+        }
+    ]
+}
