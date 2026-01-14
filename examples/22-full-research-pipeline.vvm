@@ -50,10 +50,11 @@ PR: {pr}`(pr)
 
   # Run all reviews concurrently
   review_context = pack(pr, diff_analysis)
-  reviews = pmap(
-    [security_check, perf_check, style_check],
-    lambda check_fn: check_fn(review_context)
-  )
+
+  def run_check(check_fn):
+    return check_fn(review_context)
+
+  reviews = pmap([security_check, perf_check, style_check], run_check)
 
   security_review = reviews[0]
   perf_review = reviews[1]

@@ -43,8 +43,11 @@ parallel_sentiments = pmap(reviews, analyze)
 
 # Voting pattern: multiple analyses for confidence
 def confident_sentiment(review):
-  # Run 3 independent analyses
-  votes = pmap([1, 2, 3], lambda _: @sentiment_analyzer `Sentiment of: {review}?`(review))
+  # Run 3 independent analyses - define helper inline
+  def vote(_):
+    return @sentiment_analyzer `Sentiment of: {review}?`(review)
+
+  votes = pmap([1, 2, 3], vote)
 
   # Count votes
   pos = 0
