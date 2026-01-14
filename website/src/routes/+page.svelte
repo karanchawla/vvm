@@ -15,10 +15,12 @@
 
 <svelte:head>
 	<title>VVM - Vibe Virtual Machine</title>
+	<meta name="description" content="VVM is a programming language for AI agents. Learn how language models become runtimes and why that changes everything." />
 </svelte:head>
 
+<!-- Hero Section -->
 <div
-	class="flex-1 flex items-center justify-center text-center px-4 transition-opacity duration-700 {mounted
+	class="flex items-center justify-center text-center px-4 py-16 sm:py-20 md:py-24 transition-opacity duration-700 {mounted
 		? 'opacity-100'
 		: 'opacity-0'}"
 >

@@ -13,6 +13,9 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Claude Code (local state)
+.claude/
+
 # Website (SvelteKit)
 website/node_modules/
 website/build/
@@ -20,3 +23,7 @@ website/.svelte-kit/
 website/package/
 website/vite.config.js.timestamp-*
 website/vite.config.ts.timestamp-*
+
+# API (Cloudflare Workers)
+api/node_modules/
+api/.wrangler/

@@ -1,36 +1,34 @@
-<header class="w-full px-4 sm:px-6 py-4">
-	<nav class="max-w-4xl mx-auto flex items-center justify-between" aria-label="Main navigation">
-		<a href="/" class="logo font-mono text-sm tracking-wider">VVM</a>
-		<div class="flex gap-4">
+<script lang="ts">
+	import Logo from './ui/Logo.svelte';
+</script>
+
+<header class="sticky top-2 sm:top-3 md:top-4 z-50 px-2 sm:px-4 md:px-6">
+	<nav
+		class="mx-auto flex max-w-5xl items-center justify-between rounded-lg border border-neutral-200 bg-white/80 px-2 py-2.5 backdrop-blur-md shadow-sm"
+		aria-label="Main navigation"
+	>
+		<Logo size={28} class="ml-0" />
+		<div class="flex items-center gap-4">
 			<a href="/about" class="nav-link font-mono text-xs tracking-wider text-neutral-500">About</a>
+			<a href="https://github.com/karanchawla/vvm" target="_blank" rel="noopener noreferrer" class="nav-link font-mono text-xs tracking-wider text-neutral-500">
+				GitHub
+				<span class="sr-only">(opens in new tab)</span>
+			</a>
 		</div>
 	</nav>
 </header>
 
 <style>
-	.logo {
-		color: oklch(0.476 0.296 265);
-		text-decoration: none;
-		padding: 0.5rem;
-		margin: -0.5rem;
-		border-radius: 4px;
-	}
-
-	.logo:hover {
-		text-decoration: none;
-	}
-
-	.logo:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
-		outline-offset: 2px;
-	}
-
 	.nav-link {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		text-decoration: none;
 		transition: color 0.15s ease;
-		padding: 0.5rem;
-		margin: -0.5rem;
-		border-radius: 4px;
+		padding: 0.75rem 1rem;
+		margin: -0.75rem -1rem;
+		border-radius: 6px;
+		min-height: 44px;
 	}
 
 	.nav-link:hover {

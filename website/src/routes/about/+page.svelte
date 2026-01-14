@@ -36,8 +36,9 @@
 
 <article class="about-page py-12 sm:py-16 px-4 sm:px-6">
 	<div class="max-w-2xl mx-auto">
-		<!-- Hero -->
+		<!-- Intro -->
 		<header class="mb-16">
+			<h1 class="sr-only">About VVM</h1>
 			<div class="prose">
 				<p>You've been programming a computer without realizing it.</p>
 				<p>Every time you use Claude Code, Cursor, or Codex, you're instructing a machine that can read files, write code, execute commands, and iterate on its own outputs. That's not an assistant. That's a general-purpose computer that understands meaning.</p>
@@ -103,10 +104,6 @@
 </article>
 
 <style>
-	.page-title {
-		color: oklch(0.476 0.296 265);
-	}
-
 	.section-title {
 		color: oklch(0.476 0.296 265);
 		scroll-margin-top: 2rem;
