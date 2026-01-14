@@ -1,14 +1,14 @@
 {
-    "name": "vvm",
-    "owner": {
-        "name": "Karan Chawla",
-        "url": "https://github.com/karanchawla/vvm"
-    },
-    "plugins": [
-        {
-            "name": "vvm",
-            "source": "./",
-            "description": "VVM (Vibe Virtual Machine) - The protocol for intelligence"
-        }
-    ]
+  "name": "vvm",
+  "owner": {
+    "name": "Karan Chawla",
+    "url": "https://github.com/karanchawla"
+  },
+  "plugins": [
+    {
+      "name": "vvm",
+      "source": "./",
+      "description": "A language for agentic programs where the LLM is the runtime"
+    }
+  ]
 }

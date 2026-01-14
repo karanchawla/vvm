@@ -47,20 +47,18 @@ VVM is open source and runtime-agnostic. Today it runs on Claude Code. Codex, Am
 VVM runs as a Claude Code plugin. To install:
 
 ```bash
-# Add the plugin from GitHub
-claude /plugin add github:anthropics/vvm
+# Add the plugin marketplace
+claude plugin marketplace add https://github.com/karanchawla/vvm.git
 
-# Or install from a local directory
-claude /plugin add /path/to/vvm
+# Install the plugin
+claude plugin install karanchawla@vvm
 ```
 
-After installation, bootstrap VVM:
+After installation, ask Claude to help you get started:
 
-```bash
-/vvm-boot
-```
+> "Run my first VVM example and teach me how it works"
 
-This will guide you through creating your first `.vvm` program.
+Claude will walk you through the language, run an example program, and explain the execution.
 
 ---
 
