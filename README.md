@@ -51,7 +51,7 @@ VVM runs as a Claude Code plugin. To install:
 claude plugin marketplace add https://github.com/karanchawla/vvm.git
 
 # Install the plugin
-claude plugin install karanchawla@vvm
+claude plugin install vvm@vvm
 ```
 
 After installation, ask Claude to help you get started:
