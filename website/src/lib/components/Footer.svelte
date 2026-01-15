@@ -5,7 +5,7 @@
 	import Container from './ui/Container.svelte';
 	import Logo from './ui/Logo.svelte';
 
-	const rotatingWords = ['AI sessions', 'intelligent runtimes', 'the new computer', 'tools that think'];
+	const rotatingWords = ['AI sessions', 'machines that understand', 'intelligent runtimes', 'workflows that judge', 'the new computer'];
 </script>
 
 <footer class="relative border-t border-neutral-200">
