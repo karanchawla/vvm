@@ -103,10 +103,10 @@ export explanation`
 </script>
 
 <svelte:head>
-	<title>VVM - Programs, Not Prompts</title>
+	<title>VVM - A Language for AI Computers</title>
 	<meta
 		name="description"
-		content="VVM is a programming language for AI agents. Write reusable programs for agentic workflows instead of prompting each time."
+		content="A language model with tool access is a general-purpose computer. VVM lets you program it."
 	/>
 </svelte:head>
 
@@ -115,11 +115,10 @@ export explanation`
 	<section class="hero">
 		<ProBadge class="mb-8" />
 
-		<h1 class="title font-display">Programs, Not Prompts</h1>
+		<h1 class="title font-display">You've been using a computer. Now there's a language for it.</h1>
 
 		<p class="subtitle">
-			From chat sessions to reproducible intelligence. Describe the workflow once with explicit
-			dependencies, error handling, and quality constraints. Then run it repeatedly.
+			A language model with tool access is a general-purpose computer. VVM lets you program it.
 		</p>
 
 		<div class="buttons">
