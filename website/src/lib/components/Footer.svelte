@@ -38,6 +38,19 @@
 					</a>
 				</p>
 			</div>
+			<p class="text-neutral-400">
+				Supported by
+				<a
+					href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
+					target="_blank"
+					rel="noopener noreferrer"
+					class="footer-link"
+				>
+					$VVM
+				</a>
+				on
+				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="footer-link">BagsApp</a>
+			</p>
 		</Container>
 	</Section>
 </footer>
