@@ -6,131 +6,153 @@
 		value: string;
 	}
 
-	// Tokenize VVM code for proper syntax highlighting
+	// Tokenize VVM code with multi-line string support
 	function tokenize(source: string): Token[][] {
-		return source.split('\n').map((line) => {
+		const lines = source.split('\n');
+		const result: Token[][] = [];
+		let inMultilineString = false;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
 			const tokens: Token[] = [];
-			let remaining = line;
-			let pos = 0;
+
+			// If we're continuing a multi-line string
+			if (inMultilineString) {
+				const closeIndex = line.indexOf('`');
+				if (closeIndex !== -1) {
+					// String ends on this line
+					tokens.push({ type: 'string', value: line.slice(0, closeIndex + 1) });
+					inMultilineString = false;
+					// Continue tokenizing the rest of the line
+					const rest = tokenizeLine(line.slice(closeIndex + 1));
+					tokens.push(...rest.tokens);
+					if (rest.openString) inMultilineString = true;
+				} else {
+					// Entire line is part of string
+					tokens.push({ type: 'string', value: line });
+				}
+				result.push(tokens);
+				continue;
+			}
 
 			// Comment line
 			if (line.trim().startsWith('#')) {
-				return [{ type: 'comment', value: line }];
+				result.push([{ type: 'comment', value: line }]);
+				continue;
 			}
 
-			while (remaining.length > 0) {
-				let matched = false;
+			// Normal tokenization
+			const lineResult = tokenizeLine(line);
+			result.push(lineResult.tokens);
+			if (lineResult.openString) inMultilineString = true;
+		}
 
-				// Semantic predicate: ?`...`
-				const predicateMatch = remaining.match(/^\?\`([^`]*)\`/);
-				if (predicateMatch) {
-					tokens.push({ type: 'predicate', value: predicateMatch[0] });
-					remaining = remaining.slice(predicateMatch[0].length);
-					matched = true;
-					continue;
-				}
+		return result;
+	}
 
-				// Agent call: @name
-				const agentMatch = remaining.match(/^@(\w+)/);
-				if (agentMatch) {
-					tokens.push({ type: 'agent', value: agentMatch[0] });
-					remaining = remaining.slice(agentMatch[0].length);
-					matched = true;
-					continue;
-				}
+	function tokenizeLine(line: string): { tokens: Token[]; openString: boolean } {
+		const tokens: Token[] = [];
+		let remaining = line;
+		let openString = false;
 
-				// Backtick string (can be multiline indicator)
-				const backtickMatch = remaining.match(/^`([^`]*)`/);
-				if (backtickMatch) {
-					tokens.push({ type: 'string', value: backtickMatch[0] });
-					remaining = remaining.slice(backtickMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Unclosed backtick (continues to next line)
-				const openBacktickMatch = remaining.match(/^`([^`]*)$/);
-				if (openBacktickMatch) {
-					tokens.push({ type: 'string', value: openBacktickMatch[0] });
-					remaining = '';
-					matched = true;
-					continue;
-				}
-
-				// Double-quoted string
-				const doubleQuoteMatch = remaining.match(/^"([^"]*)"/);
-				if (doubleQuoteMatch) {
-					tokens.push({ type: 'string', value: doubleQuoteMatch[0] });
-					remaining = remaining.slice(doubleQuoteMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Keywords
-				const keywordMatch = remaining.match(
-					/^(agent|def|match|case|if|elif|else|for|while|in|return|export|require|constrain|refine|try|except|finally|import|from|and|or|not|pass)\b/
-				);
-				if (keywordMatch) {
-					tokens.push({ type: 'keyword', value: keywordMatch[0] });
-					remaining = remaining.slice(keywordMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Built-in functions
-				const builtinMatch = remaining.match(/^(pack|pmap|filter|reduce|map|print)\b/);
-				if (builtinMatch) {
-					tokens.push({ type: 'builtin', value: builtinMatch[0] });
-					remaining = remaining.slice(builtinMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Numbers
-				const numberMatch = remaining.match(/^\d+/);
-				if (numberMatch) {
-					tokens.push({ type: 'number', value: numberMatch[0] });
-					remaining = remaining.slice(numberMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Property/key before colon (but not in strings)
-				const keyMatch = remaining.match(/^(\w+)(?=\s*:)/);
-				if (keyMatch) {
-					tokens.push({ type: 'key', value: keyMatch[0] });
-					remaining = remaining.slice(keyMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Punctuation
-				const punctMatch = remaining.match(/^[{}()\[\]:,=]/);
-				if (punctMatch) {
-					tokens.push({ type: 'punct', value: punctMatch[0] });
-					remaining = remaining.slice(punctMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Whitespace
-				const wsMatch = remaining.match(/^\s+/);
-				if (wsMatch) {
-					tokens.push({ type: 'ws', value: wsMatch[0] });
-					remaining = remaining.slice(wsMatch[0].length);
-					matched = true;
-					continue;
-				}
-
-				// Any other character
-				if (!matched) {
-					tokens.push({ type: 'text', value: remaining[0] });
-					remaining = remaining.slice(1);
-				}
+		while (remaining.length > 0) {
+			// Semantic predicate: ?`...`
+			const predicateMatch = remaining.match(/^\?\`([^`]*)\`/);
+			if (predicateMatch) {
+				tokens.push({ type: 'predicate', value: predicateMatch[0] });
+				remaining = remaining.slice(predicateMatch[0].length);
+				continue;
 			}
 
-			return tokens;
-		});
+			// Agent call: @name
+			const agentMatch = remaining.match(/^@(\w+)/);
+			if (agentMatch) {
+				tokens.push({ type: 'agent', value: agentMatch[0] });
+				remaining = remaining.slice(agentMatch[0].length);
+				continue;
+			}
+
+			// Complete backtick string on same line
+			const backtickMatch = remaining.match(/^`([^`]*)`/);
+			if (backtickMatch) {
+				tokens.push({ type: 'string', value: backtickMatch[0] });
+				remaining = remaining.slice(backtickMatch[0].length);
+				continue;
+			}
+
+			// Unclosed backtick (multi-line string starts)
+			const openBacktickMatch = remaining.match(/^`([^`]*)$/);
+			if (openBacktickMatch) {
+				tokens.push({ type: 'string', value: openBacktickMatch[0] });
+				remaining = '';
+				openString = true;
+				continue;
+			}
+
+			// Double-quoted string
+			const doubleQuoteMatch = remaining.match(/^"([^"]*)"/);
+			if (doubleQuoteMatch) {
+				tokens.push({ type: 'string', value: doubleQuoteMatch[0] });
+				remaining = remaining.slice(doubleQuoteMatch[0].length);
+				continue;
+			}
+
+			// Keywords
+			const keywordMatch = remaining.match(
+				/^(agent|def|match|case|if|elif|else|for|while|in|return|export|require|constrain|refine|try|except|finally|import|from|and|or|not|pass)\b/
+			);
+			if (keywordMatch) {
+				tokens.push({ type: 'keyword', value: keywordMatch[0] });
+				remaining = remaining.slice(keywordMatch[0].length);
+				continue;
+			}
+
+			// Built-in functions
+			const builtinMatch = remaining.match(/^(pack|pmap|filter|reduce|map|print)\b/);
+			if (builtinMatch) {
+				tokens.push({ type: 'builtin', value: builtinMatch[0] });
+				remaining = remaining.slice(builtinMatch[0].length);
+				continue;
+			}
+
+			// Numbers
+			const numberMatch = remaining.match(/^\d+/);
+			if (numberMatch) {
+				tokens.push({ type: 'number', value: numberMatch[0] });
+				remaining = remaining.slice(numberMatch[0].length);
+				continue;
+			}
+
+			// Property/key before colon
+			const keyMatch = remaining.match(/^(\w+)(?=\s*:)/);
+			if (keyMatch) {
+				tokens.push({ type: 'key', value: keyMatch[0] });
+				remaining = remaining.slice(keyMatch[0].length);
+				continue;
+			}
+
+			// Punctuation
+			const punctMatch = remaining.match(/^[{}()\[\]:,=]/);
+			if (punctMatch) {
+				tokens.push({ type: 'punct', value: punctMatch[0] });
+				remaining = remaining.slice(punctMatch[0].length);
+				continue;
+			}
+
+			// Whitespace
+			const wsMatch = remaining.match(/^\s+/);
+			if (wsMatch) {
+				tokens.push({ type: 'ws', value: wsMatch[0] });
+				remaining = remaining.slice(wsMatch[0].length);
+				continue;
+			}
+
+			// Any other character
+			tokens.push({ type: 'text', value: remaining[0] });
+			remaining = remaining.slice(1);
+		}
+
+		return { tokens, openString };
 	}
 
 	function escapeHtml(text: string): string {
@@ -156,10 +178,6 @@
 			})
 			.join('\n');
 	}
-
-	$effect(() => {
-		// Reactive tokenization when code changes
-	});
 </script>
 
 <div class="code-block {className}">
@@ -183,16 +201,15 @@
 	}
 
 	code {
-		font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
+		font-family: var(--font-mono);
 		font-size: 0.8125rem;
 		line-height: 1.75;
 		color: rgb(55 55 60);
 		display: block;
 		white-space: pre;
-		font-feature-settings: 'liga' 1, 'calt' 1;
 	}
 
-	/* Token styles - carefully crafted color palette */
+	/* Token styles */
 	:global(.tok-comment) {
 		color: rgb(142 142 152);
 		font-style: italic;
@@ -200,7 +217,7 @@
 
 	:global(.tok-keyword) {
 		color: rgb(168 70 185);
-		font-weight: 550;
+		font-weight: 500;
 	}
 
 	:global(.tok-builtin) {
@@ -215,7 +232,7 @@
 
 	:global(.tok-predicate) {
 		color: rgb(195 90 50);
-		font-weight: 550;
+		font-weight: 500;
 	}
 
 	:global(.tok-string) {

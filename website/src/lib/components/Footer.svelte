@@ -5,7 +5,7 @@
 	import Container from './ui/Container.svelte';
 	import Logo from './ui/Logo.svelte';
 
-	const rotatingWords = ['understand', 'reason', 'adapt', 'evolve', 'interpret'];
+	const rotatingWords = ['AI sessions', 'intelligent runtimes', 'the new computer', 'tools that think'];
 </script>
 
 <footer class="relative border-t border-neutral-200">
@@ -27,7 +27,7 @@
 			<Logo size={36} />
 
 			<p class="font-sans text-sm sm:text-base text-neutral-600 leading-relaxed pl-1">
-				A programming language for AI agents that <br class="sm:hidden" /><TextLoop class="font-medium text-vvm-purple inline-block min-w-[5.5em]" children={rotatingWords} interval={3} />
+				A programming language for <TextLoop class="font-medium text-vvm-purple inline-block min-w-[9em]" children={rotatingWords} interval={3} />
 			</p>
 
 			<div class="space-y-1 sm:space-y-2 font-mono text-xs text-neutral-500 text-center mt-4 sm:mt-5">
