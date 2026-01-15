@@ -64,17 +64,23 @@ final_code = refine(initial_code, max=5, done=passes_review, step=apply_feedback
 export final_code`
 		},
 		{
-			title: 'Explainer Agent',
+			title: 'Parallel Launch',
 			description:
-				'Define the agent once. Run it on anything. The difference between shell commands and a script.',
-			code: `# Reusable agent for simple explanations
-agent explainer(model="sonnet", prompt="Explain concepts simply, as if to a five-year-old.")
+				'Five translations at once. pmap fans out, waits for all, returns in order. No async/await.',
+			code: `# Translate a product launch to 5 languages simultaneously
+agent translator(model="sonnet", prompt="Translate accurately, preserving tone.")
 
-topic = "black holes"
+product_copy = "Introducing CloudSync Pro: real-time sync, end-to-end encryption, offline mode."
 
-explanation = @explainer \`Explain {topic} using a simple analogy.\`(topic)
+languages = ["Spanish", "French", "German", "Japanese", "Portuguese"]
 
-export explanation`
+def translate_to(language):
+  return @translator \`Translate to {language}: {product_copy}\`(pack(language, product_copy))
+
+# pmap runs ALL translations concurrently - 5x faster than sequential
+translations = pmap(languages, translate_to)
+
+export translations`
 		}
 	];
 

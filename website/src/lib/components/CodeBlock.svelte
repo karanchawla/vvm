@@ -1,130 +1,233 @@
 <script lang="ts">
 	let { code, class: className = '' }: { code: string; class?: string } = $props();
 
-	// Simple syntax highlighting for VVM
-	function highlight(source: string): string {
-		return source
-			.split('\n')
-			.map((line) => {
-				// Comments - handle first, return early
-				if (line.trim().startsWith('#')) {
-					return '<span class="hl-comment">' + escapeForHtml(line) + '</span>';
+	interface Token {
+		type: string;
+		value: string;
+	}
+
+	// Tokenize VVM code for proper syntax highlighting
+	function tokenize(source: string): Token[][] {
+		return source.split('\n').map((line) => {
+			const tokens: Token[] = [];
+			let remaining = line;
+			let pos = 0;
+
+			// Comment line
+			if (line.trim().startsWith('#')) {
+				return [{ type: 'comment', value: line }];
+			}
+
+			while (remaining.length > 0) {
+				let matched = false;
+
+				// Semantic predicate: ?`...`
+				const predicateMatch = remaining.match(/^\?\`([^`]*)\`/);
+				if (predicateMatch) {
+					tokens.push({ type: 'predicate', value: predicateMatch[0] });
+					remaining = remaining.slice(predicateMatch[0].length);
+					matched = true;
+					continue;
 				}
 
-				// Escape HTML entities first
-				let result = escapeForHtml(line);
+				// Agent call: @name
+				const agentMatch = remaining.match(/^@(\w+)/);
+				if (agentMatch) {
+					tokens.push({ type: 'agent', value: agentMatch[0] });
+					remaining = remaining.slice(agentMatch[0].length);
+					matched = true;
+					continue;
+				}
 
-				// Keywords (must come before other replacements)
-				result = result.replace(
-					/\b(agent|def|match|case|if|elif|else|for|while|in|return|export|require|constrain|refine|try|except|finally|import|from|and|or|not)\b/g,
-					'<span class="hl-keyword">$1</span>'
+				// Backtick string (can be multiline indicator)
+				const backtickMatch = remaining.match(/^`([^`]*)`/);
+				if (backtickMatch) {
+					tokens.push({ type: 'string', value: backtickMatch[0] });
+					remaining = remaining.slice(backtickMatch[0].length);
+					matched = true;
+					continue;
+				}
+
+				// Unclosed backtick (continues to next line)
+				const openBacktickMatch = remaining.match(/^`([^`]*)$/);
+				if (openBacktickMatch) {
+					tokens.push({ type: 'string', value: openBacktickMatch[0] });
+					remaining = '';
+					matched = true;
+					continue;
+				}
+
+				// Double-quoted string
+				const doubleQuoteMatch = remaining.match(/^"([^"]*)"/);
+				if (doubleQuoteMatch) {
+					tokens.push({ type: 'string', value: doubleQuoteMatch[0] });
+					remaining = remaining.slice(doubleQuoteMatch[0].length);
+					matched = true;
+					continue;
+				}
+
+				// Keywords
+				const keywordMatch = remaining.match(
+					/^(agent|def|match|case|if|elif|else|for|while|in|return|export|require|constrain|refine|try|except|finally|import|from|and|or|not|pass)\b/
 				);
+				if (keywordMatch) {
+					tokens.push({ type: 'keyword', value: keywordMatch[0] });
+					remaining = remaining.slice(keywordMatch[0].length);
+					matched = true;
+					continue;
+				}
 
 				// Built-in functions
-				result = result.replace(
-					/\b(pack|pmap|filter|reduce|map|print)\b/g,
-					'<span class="hl-builtin">$1</span>'
-				);
-
-				// Agent calls @name
-				result = result.replace(/@(\w+)/g, '<span class="hl-agent">@$1</span>');
-
-				// Semantic predicates ?\`...\`
-				result = result.replace(
-					/\?\`([^`]*)\`/g,
-					'<span class="hl-predicate">?`$1`</span>'
-				);
-
-				// Backtick strings (but not already highlighted predicates)
-				result = result.replace(
-					/(?<!<span class="hl-predicate">)\`([^`]*)\`/g,
-					'<span class="hl-string">`$1`</span>'
-				);
-
-				// Double-quoted strings
-				result = result.replace(
-					/&quot;([^&]*)&quot;/g,
-					'<span class="hl-string">&quot;$1&quot;</span>'
-				);
+				const builtinMatch = remaining.match(/^(pack|pmap|filter|reduce|map|print)\b/);
+				if (builtinMatch) {
+					tokens.push({ type: 'builtin', value: builtinMatch[0] });
+					remaining = remaining.slice(builtinMatch[0].length);
+					matched = true;
+					continue;
+				}
 
 				// Numbers
-				result = result.replace(
-					/\b(\d+)\b/g,
-					'<span class="hl-number">$1</span>'
-				);
+				const numberMatch = remaining.match(/^\d+/);
+				if (numberMatch) {
+					tokens.push({ type: 'number', value: numberMatch[0] });
+					remaining = remaining.slice(numberMatch[0].length);
+					matched = true;
+					continue;
+				}
 
-				return result;
+				// Property/key before colon (but not in strings)
+				const keyMatch = remaining.match(/^(\w+)(?=\s*:)/);
+				if (keyMatch) {
+					tokens.push({ type: 'key', value: keyMatch[0] });
+					remaining = remaining.slice(keyMatch[0].length);
+					matched = true;
+					continue;
+				}
+
+				// Punctuation
+				const punctMatch = remaining.match(/^[{}()\[\]:,=]/);
+				if (punctMatch) {
+					tokens.push({ type: 'punct', value: punctMatch[0] });
+					remaining = remaining.slice(punctMatch[0].length);
+					matched = true;
+					continue;
+				}
+
+				// Whitespace
+				const wsMatch = remaining.match(/^\s+/);
+				if (wsMatch) {
+					tokens.push({ type: 'ws', value: wsMatch[0] });
+					remaining = remaining.slice(wsMatch[0].length);
+					matched = true;
+					continue;
+				}
+
+				// Any other character
+				if (!matched) {
+					tokens.push({ type: 'text', value: remaining[0] });
+					remaining = remaining.slice(1);
+				}
+			}
+
+			return tokens;
+		});
+	}
+
+	function escapeHtml(text: string): string {
+		return text
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;');
+	}
+
+	function renderTokens(lines: Token[][]): string {
+		return lines
+			.map((tokens) => {
+				if (tokens.length === 0) return '';
+				return tokens
+					.map((t) => {
+						const escaped = escapeHtml(t.value);
+						if (t.type === 'text' || t.type === 'ws' || t.type === 'punct') {
+							return escaped;
+						}
+						return `<span class="tok-${t.type}">${escaped}</span>`;
+					})
+					.join('');
 			})
 			.join('\n');
 	}
 
-	function escapeForHtml(text: string): string {
-		return text
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;');
-	}
+	$effect(() => {
+		// Reactive tokenization when code changes
+	});
 </script>
 
 <div class="code-block {className}">
-	<pre><code>{@html highlight(code)}</code></pre>
+	<pre><code>{@html renderTokens(tokenize(code))}</code></pre>
 </div>
 
 <style>
 	.code-block {
-		background: rgb(250 250 250);
-		border: 1px solid rgb(229 229 229);
-		border-radius: 8px;
+		background: linear-gradient(to bottom, rgb(252 252 253), rgb(248 248 250));
+		border: 1px solid rgb(232 232 237);
+		border-radius: 10px;
 		overflow: hidden;
+		box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
 	}
 
 	pre {
 		margin: 0;
-		padding: 1.25rem 1.5rem;
+		padding: 1.5rem;
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
 	}
 
 	code {
-		font-family: var(--font-mono);
+		font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
 		font-size: 0.8125rem;
-		line-height: 1.7;
-		color: rgb(64 64 64);
+		line-height: 1.75;
+		color: rgb(55 55 60);
 		display: block;
 		white-space: pre;
+		font-feature-settings: 'liga' 1, 'calt' 1;
 	}
 
-	/* Use unique class prefix to avoid conflicts */
-	:global(.hl-comment) {
-		color: rgb(140 140 140);
+	/* Token styles - carefully crafted color palette */
+	:global(.tok-comment) {
+		color: rgb(142 142 152);
 		font-style: italic;
 	}
 
-	:global(.hl-keyword) {
-		color: oklch(0.476 0.296 265);
+	:global(.tok-keyword) {
+		color: rgb(168 70 185);
+		font-weight: 550;
+	}
+
+	:global(.tok-builtin) {
+		color: rgb(50 130 180);
 		font-weight: 500;
 	}
 
-	:global(.hl-builtin) {
-		color: oklch(0.55 0.2 200);
+	:global(.tok-agent) {
+		color: rgb(30 130 90);
+		font-weight: 600;
 	}
 
-	:global(.hl-agent) {
-		color: oklch(0.45 0.2 150);
+	:global(.tok-predicate) {
+		color: rgb(195 90 50);
+		font-weight: 550;
+	}
+
+	:global(.tok-string) {
+		color: rgb(65 130 70);
+	}
+
+	:global(.tok-number) {
+		color: rgb(28 100 180);
 		font-weight: 500;
 	}
 
-	:global(.hl-predicate) {
-		color: oklch(0.5 0.22 30);
-		font-weight: 500;
-	}
-
-	:global(.hl-string) {
-		color: oklch(0.45 0.15 145);
-	}
-
-	:global(.hl-number) {
-		color: oklch(0.55 0.2 30);
+	:global(.tok-key) {
+		color: rgb(130 90 165);
 	}
 </style>
