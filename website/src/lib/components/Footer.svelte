@@ -30,25 +30,12 @@
 				A programming language for <TextLoop class="font-medium text-vvm-purple inline-block min-w-[12em]" children={rotatingWords} interval={3} />
 			</p>
 
-			<div class="space-y-1 sm:space-y-2 font-mono text-xs text-neutral-500 text-center mt-4 sm:mt-5">
+			<div class="font-mono text-xs text-neutral-500 text-center mt-4 sm:mt-5">
 				<p>
 					&copy; 2026
 					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="footer-link">
 						Karan Chawla
 					</a>
-				</p>
-				<p class="text-neutral-400">
-					Supported by
-					<a
-						href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
-						target="_blank"
-						rel="noopener noreferrer"
-						class="footer-link"
-					>
-						$VVM
-					</a>
-					on
-					<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="footer-link">BagsApp</a>
 				</p>
 			</div>
 		</Container>
