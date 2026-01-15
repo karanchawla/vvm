@@ -121,7 +121,7 @@ export translations`
 	<section class="hero">
 		<ProBadge class="mb-8" />
 
-		<h1 class="title font-display">You've been using a computer. Now there's a language for it.</h1>
+		<h1 class="title font-display">You've been prompting a computer. Now there's a language for it.</h1>
 
 		<p class="subtitle">
 			A language model with tool access is a general-purpose computer. VVM lets you program it.
