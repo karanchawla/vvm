@@ -8,12 +8,8 @@
 		aria-label="Main navigation"
 	>
 		<Logo size={28} class="ml-0" />
-		<div class="flex items-center gap-4">
+		<div class="flex items-center">
 			<a href="/about" class="nav-link font-mono text-xs tracking-wider text-neutral-500">About</a>
-			<a href="https://github.com/karanchawla/vvm" target="_blank" rel="noopener noreferrer" class="nav-link font-mono text-xs tracking-wider text-neutral-500">
-				GitHub
-				<span class="sr-only">(opens in new tab)</span>
-			</a>
 		</div>
 	</nav>
 </header>

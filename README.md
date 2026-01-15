@@ -26,19 +26,19 @@ export final_code
 
 ---
 
-## Philosophy
+## The Insight
 
-You've been programming a computer without realizing it.
+A language model with tool access is a general-purpose computer. Not metaphorically. Literally.
 
-Every time you use Claude Code, Cursor, or Codex, you're instructing a machine that can read files, write code, execute commands, and iterate on its own outputs. That's not an assistant. That's a general-purpose computer that understands meaning.
+Every time you use Claude Code, Cursor, or Codex, you're instructing a machine that reads files, writes code, executes commands, and iterates on its outputs. We've been calling these "assistants" because we didn't have better words. But assistants don't spawn subprocesses or manage their own control flow.
 
-**When English breaks down.** Simple tasks are fine—"refactor this function" needs no specification. Complex tasks fall apart. You want three analyses to run in parallel, feed into a synthesis, retry on failure, and only proceed if the output meets a quality bar. You can say that in English. But which parts are instructions and which are suggestions? English handles intent. It can't handle structure.
+**The problem with English.** Simple tasks work fine—"refactor this function" needs no specification. Complex tasks fall apart. You want three analyses to run in parallel, feed into a synthesis, retry on failure, and only proceed if the output meets a quality bar. You can say that in English. But which parts are instructions and which are suggestions? Which are hard constraints and which are preferences? English handles intent well. It can't handle structure.
 
-**The model is the runtime.** VVM inverts the usual pattern. Frameworks like LangChain put orchestration in your code and treat the model as a function to call. VVM puts orchestration inside the model. You write a program, hand it to the model, and the model becomes the runtime. The intelligence doesn't just execute steps—it interprets the program, manages dependencies, and makes decisions about how to proceed.
+**Inversion.** Most frameworks (LangChain, etc.) put orchestration in your code and treat the model as a function to call. VVM inverts this. You write a program, hand it to the model, and the model becomes the runtime. The intelligence doesn't just execute steps—it interprets the program, manages dependencies, decides how to proceed when things go wrong.
 
-**Predicates that understand.** When orchestration lives in Python, conditions must be things Python can compute—proxy metrics like `if confidence_score > 0.8`. When orchestration lives in the model, conditions can be semantic. "Is this production ready?" isn't a threshold. It's a question the runtime answers by reading and judging. The model operates in meaning-space. Now your programs can too.
+**Predicates that understand.** When orchestration lives in Python, conditions must be things Python can compute—proxy metrics like `if confidence_score > 0.8`. When orchestration lives in the model, conditions can be semantic. "Is this production ready?" isn't a threshold. It's a question the runtime answers by reading and judging. The program operates in meaning-space.
 
-VVM is open source and runtime-agnostic. Today it runs on Claude Code. Codex, Amp, and OpenCode are planned.
+VVM is open source and runtime-agnostic. Today it runs on Claude Code. Codex, Amp, and OpenCode support is planned.
 
 ---
 
@@ -62,11 +62,11 @@ Claude will walk you through the language, run an example program, and explain t
 
 ---
 
-## Key Features
+## The Language
 
 ### Agents
 
-Define agents with specific models and system prompts:
+Named agents with models and system prompts:
 
 ```vvm
 agent researcher(model="sonnet", prompt="Research expert. Always cite sources.")
@@ -78,7 +78,7 @@ report = @writer `Summarize the key findings.`(research)
 
 ### Semantic Predicates
 
-Make decisions based on meaning, not regex:
+Conditions evaluated by the runtime's judgment, not regex:
 
 ```vvm
 if ?`contains sensitive information`(document):
@@ -87,7 +87,7 @@ if ?`contains sensitive information`(document):
 
 ### Pattern Matching
 
-Route based on semantic understanding:
+Route based on meaning:
 
 ```vvm
 match ticket:
@@ -99,9 +99,9 @@ match ticket:
     team = "general"
 ```
 
-### Quality Constraints
+### Constraints
 
-Enforce requirements with automatic retry:
+Requirements with automatic retry on failure:
 
 ```vvm
 constrain draft(attempts=3):
@@ -110,9 +110,9 @@ constrain draft(attempts=3):
   require ?`professional tone`
 ```
 
-### Parallel Execution
+### Parallelism
 
-Fan out work explicitly:
+Explicit, never implicit:
 
 ```vvm
 def translate(text):
@@ -121,9 +121,9 @@ def translate(text):
 translations = pmap(documents, translate)  # Runs in parallel
 ```
 
-### Iterative Refinement
+### Refinement Loops
 
-Loop until quality criteria are met:
+Iterate until done:
 
 ```vvm
 final = refine(
@@ -136,16 +136,14 @@ final = refine(
 
 ---
 
-## How It Works
+## Execution Model
 
-VVM execution follows a simple model:
-
-1. **Parse** — Read the `.vvm` file and build an AST
+1. **Parse** — Read `.vvm`, build AST
 2. **Validate** — Check syntax, resolve references, verify constraints
 3. **Execute** — Run statements top-to-bottom, eagerly
-4. **Spawn** — Agent calls (`@agent`) spawn subagents via the Task tool
-5. **Evaluate** — Semantic predicates (`?`...``) are judged locally by the VM
-6. **Export** — Return the declared exports
+4. **Spawn** — Agent calls (`@agent`) spawn subagents via Task tool
+5. **Evaluate** — Semantic predicates (`?`...``) judged by the runtime
+6. **Export** — Return declared exports
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -164,50 +162,33 @@ VVM execution follows a simple model:
 └─────────────────────────────────────────────────┘
 ```
 
-Parallelism is **never implicit**. Use `pmap()` when you want concurrent execution.
-
 ---
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/vvm-boot` | Initialize VVM and create your first program |
-| `/vvm-compile <file>` | Validate a program without running it |
-| `/vvm-run <file>` | Execute a VVM program |
+| `/vvm-boot` | Initialize VVM, create first program |
+| `/vvm-compile <file>` | Validate without running |
+| `/vvm-run <file>` | Execute a program |
 
 ---
 
 ## Examples
 
-The `examples/` directory contains 23 progressive examples covering all language features:
+The `examples/` directory has 23 programs, progressively introducing features:
 
 - **01-08**: Basics (agents, predicates, control flow)
 - **09-15**: Intermediate (parallelism, modules, error handling)
 - **16-23**: Advanced (constraints, refinement loops, full pipelines)
 
-See `examples/README.md` for the complete list.
-
 ---
 
-## Active Development
+## Caveats
 
-VVM is under active development. The language specification may change between versions, and **breaking changes are possible**.
+**This is experimental.** The language spec will change. Breaking changes are likely. Pin versions if you care about stability.
 
-We recommend pinning to a specific version for production use and testing thoroughly when upgrading.
-
----
-
-## Responsibility
-
-VVM programs spawn AI agents that can read files, make network requests, and execute code. **You are responsible for the actions of agents in your programs.**
-
-Before running a VVM program:
-- Review the agent definitions and their permissions
-- Understand what tools and capabilities agents will have access to
-- Test in a safe environment first
-
-The VVM authors are not liable for any damages caused by agents spawned through VVM programs.
+**You own your agents.** VVM programs spawn AI agents that can read files, make network requests, and execute code. Review what you're running. Test in sandboxes first. The authors disclaim liability for agent behavior—this is on you.
 
 ---
 
