@@ -97,6 +97,7 @@
 		cursor: pointer;
 		transition: all 0.15s ease;
 		white-space: nowrap;
+		min-height: 44px;
 	}
 
 	.tab:hover {
@@ -125,9 +126,17 @@
 
 	.description {
 		font-family: var(--font-sans);
-		font-size: 0.9375rem;
-		line-height: 1.6;
+		font-size: 0.875rem;
+		line-height: 1.5;
 		color: rgb(115 115 115);
-		margin-bottom: 1rem;
+		margin-bottom: 0.75rem;
+	}
+
+	@media (min-width: 640px) {
+		.description {
+			font-size: 0.9375rem;
+			line-height: 1.6;
+			margin-bottom: 1rem;
+		}
 	}
 </style>

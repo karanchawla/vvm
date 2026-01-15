@@ -195,18 +195,31 @@
 
 	pre {
 		margin: 0;
-		padding: 1.5rem;
+		padding: 1rem;
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
 	}
 
+	@media (min-width: 640px) {
+		pre {
+			padding: 1.5rem;
+		}
+	}
+
 	code {
 		font-family: var(--font-mono);
-		font-size: 0.8125rem;
-		line-height: 1.75;
+		font-size: 0.75rem;
+		line-height: 1.7;
 		color: rgb(55 55 60);
 		display: block;
 		white-space: pre;
+	}
+
+	@media (min-width: 640px) {
+		code {
+			font-size: 0.8125rem;
+			line-height: 1.75;
+		}
 	}
 
 	/* Token styles */

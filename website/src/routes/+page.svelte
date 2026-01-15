@@ -181,9 +181,15 @@ export translations`
 	/* Hero */
 	.hero {
 		text-align: center;
-		padding: 4rem 0 5rem;
+		padding: 2.5rem 0 3rem;
 		max-width: 42rem;
 		margin: 0 auto;
+	}
+
+	@media (min-width: 640px) {
+		.hero {
+			padding: 4rem 0 5rem;
+		}
 	}
 
 	.title {
@@ -280,33 +286,54 @@ export translations`
 	.concepts {
 		max-width: 48rem;
 		margin: 0 auto;
-		padding: 3rem 0;
+		padding: 2rem 0;
+	}
+
+	@media (min-width: 640px) {
+		.examples,
+		.concepts {
+			padding: 3rem 0;
+		}
 	}
 
 	.section-header {
-		margin-bottom: 2rem;
+		margin-bottom: 1.5rem;
+	}
+
+	@media (min-width: 640px) {
+		.section-header {
+			margin-bottom: 2rem;
+		}
 	}
 
 	.section-title {
-		font-size: 1.375rem;
+		font-size: 1.25rem;
 		font-weight: 300;
 		letter-spacing: 0.01em;
 		color: oklch(0.476 0.296 265);
-		margin-bottom: 0.75rem;
+		margin-bottom: 0.5rem;
 	}
 
 	@media (min-width: 640px) {
 		.section-title {
 			font-size: 1.5rem;
+			margin-bottom: 0.75rem;
 		}
 	}
 
 	.section-description {
 		font-family: var(--font-sans);
-		font-size: 0.9375rem;
-		line-height: 1.7;
+		font-size: 0.875rem;
+		line-height: 1.6;
 		color: rgb(115 115 115);
 		max-width: 36rem;
+	}
+
+	@media (min-width: 640px) {
+		.section-description {
+			font-size: 0.9375rem;
+			line-height: 1.7;
+		}
 	}
 
 	/* Concepts Grid - 2x2 */
