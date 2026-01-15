@@ -80,19 +80,24 @@ export explanation`
 
 	const concepts = [
 		{
-			title: 'Model as Runtime',
+			title: 'Define Workers',
 			description:
-				'Frameworks call the model like a function. VVM hands it the program. The intelligence doesn\'t execute steps—it interprets them.'
+				'A researcher with web access. An analyst for synthesis. A writer for polish. Each agent is a configuration: model, prompt, skills, permissions. You build the team.'
 		},
 		{
-			title: 'Semantic Predicates',
+			title: 'Specify Structure',
 			description:
-				'Python conditions must be computable: confidence > 0.8. VVM conditions are semantic: "Is this production ready?" That\'s a question, not a threshold.'
+				'This depends on that. These run in parallel. Retry on failure. The workflow in your head, made explicit and unambiguous.'
 		},
 		{
-			title: 'Open Standard',
+			title: 'Set the Bar',
 			description:
-				'Claude Code today. Codex, Amp, OpenCode planned. The spec is public. Standards win by being used.'
+				'"At least five citations." "No hallucinations." "Executive reading level." Quality gates the runtime evaluates by comprehension, not by counting.'
+		},
+		{
+			title: 'Execute',
+			description:
+				'Hand your .vvm file to Claude Code. It parses, spawns subagents, manages context, enforces constraints. What comes out are artifacts you can use.'
 		}
 	];
 </script>
@@ -118,7 +123,7 @@ export explanation`
 		</p>
 
 		<div class="buttons">
-			<a href="https://github.com/anthropics/vvm" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+			<a href="https://github.com/karanchawla/vvm" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
 				<svg
 					class="github-icon"
 					viewBox="0 0 16 16"
@@ -131,7 +136,7 @@ export explanation`
 				</svg>
 				Star on GitHub
 			</a>
-			<a href="https://github.com/anthropics/vvm/tree/main/examples" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+			<a href="https://github.com/karanchawla/vvm/tree/main/examples" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
 				View Examples
 			</a>
 		</div>
@@ -149,14 +154,10 @@ export explanation`
 		<ExampleCarousel {examples} />
 	</section>
 
-	<!-- Concepts Section -->
+	<!-- How It Works Section -->
 	<section class="concepts">
 		<div class="section-header">
 			<h2 class="section-title font-display">How It Works</h2>
-			<p class="section-description">
-				You've been programming a computer without realizing it. We've been doing it with chat
-				messages. That works until it doesn't.
-			</p>
 		</div>
 
 		<div class="concepts-grid">
@@ -303,21 +304,16 @@ export explanation`
 		max-width: 36rem;
 	}
 
-	/* Concepts Grid */
+	/* Concepts Grid - 2x2 */
 	.concepts-grid {
 		display: grid;
 		gap: 1rem;
+		grid-template-columns: 1fr;
 	}
 
 	@media (min-width: 640px) {
 		.concepts-grid {
 			grid-template-columns: repeat(2, 1fr);
-		}
-	}
-
-	@media (min-width: 768px) {
-		.concepts-grid {
-			grid-template-columns: repeat(3, 1fr);
 		}
 	}
 </style>
