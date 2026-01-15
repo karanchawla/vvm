@@ -1,0 +1,39 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- VVM Logo: 3D ring of dots -->
+  <defs>
+    <linearGradient id="dotGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B8BF6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Top row of dots (back to front perspective) -->
+  <!-- Back-left -->
+  <ellipse cx="25" cy="32" rx="4" ry="8" fill="#3B8BF6" transform="rotate(-30 25 32)"/>
+  <!-- Back-center-left -->
+  <ellipse cx="38" cy="24" rx="6" ry="8" fill="#3B8BF6" transform="rotate(-15 38 24)"/>
+  <!-- Back-center -->
+  <circle cx="50" cy="22" r="8" fill="#3B8BF6"/>
+  <!-- Back-center-right -->
+  <ellipse cx="62" cy="24" rx="6" ry="8" fill="#3B8BF6" transform="rotate(15 62 24)"/>
+  <!-- Back-right -->
+  <ellipse cx="75" cy="32" rx="4" ry="8" fill="#3B8BF6" transform="rotate(30 75 32)"/>
+
+  <!-- Side dots -->
+  <!-- Far left -->
+  <ellipse cx="18" cy="50" rx="3" ry="7" fill="#3B8BF6"/>
+  <!-- Far right -->
+  <ellipse cx="82" cy="50" rx="3" ry="7" fill="#3B8BF6"/>
+
+  <!-- Bottom row of dots (front to back perspective) -->
+  <!-- Front-left -->
+  <ellipse cx="25" cy="68" rx="4" ry="8" fill="#3B8BF6" transform="rotate(30 25 68)"/>
+  <!-- Front-center-left -->
+  <ellipse cx="38" cy="76" rx="6" ry="8" fill="#3B8BF6" transform="rotate(15 38 76)"/>
+  <!-- Front-center -->
+  <circle cx="50" cy="78" r="8" fill="#3B8BF6"/>
+  <!-- Front-center-right -->
+  <ellipse cx="62" cy="76" rx="6" ry="8" fill="#3B8BF6" transform="rotate(-15 62 76)"/>
+  <!-- Front-right -->
+  <ellipse cx="75" cy="68" rx="4" ry="8" fill="#3B8BF6" transform="rotate(-30 75 68)"/>
+</svg>

@@ -180,9 +180,9 @@
 	}
 </script>
 
-<div class="code-block {className}">
+<figure class="code-block {className}" role="figure" aria-label="VVM code example">
 	<pre><code>{@html renderTokens(tokenize(code))}</code></pre>
-</div>
+</figure>
 
 <style>
 	.code-block {

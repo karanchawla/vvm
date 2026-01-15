@@ -217,7 +217,7 @@ export translations`
 		font-family: var(--font-sans);
 		font-size: 1rem;
 		line-height: 1.7;
-		color: rgb(115 115 115);
+		color: rgb(100 100 100);
 		max-width: 32rem;
 		margin: 0 auto 2.5rem;
 	}
@@ -325,7 +325,7 @@ export translations`
 		font-family: var(--font-sans);
 		font-size: 0.875rem;
 		line-height: 1.6;
-		color: rgb(115 115 115);
+		color: rgb(100 100 100);
 		max-width: 36rem;
 	}
 

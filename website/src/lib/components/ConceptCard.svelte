@@ -27,7 +27,14 @@
 	}
 
 	.concept-card:hover {
-		border-color: oklch(0.476 0.296 265 / 0.3);
+		border-color: oklch(0.476 0.296 265 / 0.5);
+		background: rgb(248 248 250);
+	}
+
+	.concept-card:focus-within {
+		border-color: oklch(0.476 0.296 265 / 0.5);
+		outline: 2px solid oklch(0.476 0.296 265 / 0.3);
+		outline-offset: 2px;
 	}
 
 	.title {
