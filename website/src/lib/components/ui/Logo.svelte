@@ -9,7 +9,7 @@
 
 <a href="/" class="logo-link {className}" aria-label="VVM Home">
 	<img
-		src="/vvm-logo.svg"
+		src="/logo.svg"
 		alt=""
 		width={size}
 		height={size}

@@ -109,7 +109,7 @@ export translations`
 </script>
 
 <svelte:head>
-	<title>VVM - A Language for AI Computers</title>
+	<title>VVM - A programming language for intelligent runtimes</title>
 	<meta
 		name="description"
 		content="A language model with tool access is a general-purpose computer. VVM lets you program it."
