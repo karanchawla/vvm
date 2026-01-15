@@ -15,74 +15,64 @@
 			title: 'Ticket Router',
 			description:
 				'No regex. No keyword lists. The model reads the ticket and understands what it means.',
-			code: `# Route tickets by understanding, not keywords
+			code: `# Route tickets by semantic understanding
 ticket = {
   id: "TKT-4821",
-  message: "I was charged twice for my subscription"
+  message: "I was charged twice for my subscription last month",
+  customer_tier: "premium"
 }
 
 match ticket:
-  case ?'billing, payment, or refund issue':
+  case ?\`billing, payment, or refund issue\`:
     team = "billing"
     priority = "high"
-  case ?'account access or login problem':
+  case ?\`account access or login problem\`:
     team = "security"
     priority = "urgent"
-  case ?'bug report or technical error':
+  case ?\`bug report or technical error\`:
     team = "engineering"
     priority = "medium"
   case _:
     team = "general-support"
     priority = "medium"
 
-export { ticket_id: ticket.id, team, priority }`
+export { ticket_id: ticket.id, assigned_team: team, priority: priority }`
 		},
 		{
 			title: 'Code Reviewer',
 			description:
 				'Reviewer critiques. Coder improves. Repeat until it passes or you hit the limit.',
 			code: `# Iterative improvement with evaluator-optimizer
-agent coder(model="sonnet", prompt="Write clean, tested code.")
-agent reviewer(model="opus", prompt="Review critically. Find issues.")
+agent coder(model="sonnet", prompt="Write clean, well-tested code.")
+agent reviewer(model="opus", prompt="Review code critically. Find bugs and issues.")
 
 def passes_review(code, iteration):
-  review = @reviewer \`Review this code. If production-ready, say APPROVED.\`(code)
-  return ?'contains APPROVED with no issues'(review)
+  review = @reviewer \`Review this code. List any bugs or improvements needed.
+If production-ready with no issues, respond with "APPROVED".\`(code)
+  return ?\`contains APPROVED with no significant issues listed\`(review)
 
 def apply_feedback(code, iteration):
-  review = @reviewer \`What's the biggest issue with this code?\`(code)
-  return @coder \`Fix this issue: {review}\`(pack(code, review))
+  review = @reviewer \`Review this code critically. Focus on bugs,
+edge cases, input validation, and clarity.\`(code)
+  improved = @coder \`Improve this code based on the review.
+Code: {code}
+Review: {review}\`(pack(code, review))
+  return improved
 
-# Loop until approved or 5 iterations
-final_code = refine(
-  initial_code,
-  max=5,
-  done=passes_review,
-  step=apply_feedback
-)
+final_code = refine(initial_code, max=5, done=passes_review, step=apply_feedback)
 
 export final_code`
 		},
 		{
-			title: 'Research Agent',
+			title: 'Explainer Agent',
 			description:
 				'Define the agent once. Run it on anything. The difference between shell commands and a script.',
-			code: `# A reusable agent for explanations
-agent explainer(
-  model="sonnet",
-  prompt="Explain concepts simply. Use analogies."
-)
+			code: `# Reusable agent for simple explanations
+agent explainer(model="sonnet", prompt="Explain concepts simply, as if to a five-year-old.")
 
-topic = "quantum computing"
+topic = "black holes"
 
-explanation = @explainer \`Explain {topic} as if to a curious
-teenager. Use a concrete analogy from everyday life.\`(topic)
-
-# Ensure quality before returning
-constrain explanation():
-  require ?'uses a clear, relatable analogy'
-  require ?'avoids unnecessary jargon'
-  require ?'would make sense to a non-expert'
+explanation = @explainer \`Explain {topic} using a simple analogy.\`(topic)
 
 export explanation`
 		}
