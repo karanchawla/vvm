@@ -14,7 +14,7 @@
 		{
 			title: 'Ticket Router',
 			description:
-				'Route support tickets to the right team. No regex. No keyword lists. The model reads the message and understands what it means.',
+				'No regex. No keyword lists. The model reads the ticket and understands what it means.',
 			code: `# Route tickets by understanding, not keywords
 ticket = {
   id: "TKT-4821",
@@ -40,7 +40,7 @@ export { ticket_id: ticket.id, team, priority }`
 		{
 			title: 'Code Reviewer',
 			description:
-				'Iterate until quality. The reviewer critiques, the coder improves. Repeat until the code passes muster or you hit the limit.',
+				'Reviewer critiques. Coder improves. Repeat until it passes or you hit the limit.',
 			code: `# Iterative improvement with evaluator-optimizer
 agent coder(model="sonnet", prompt="Write clean, tested code.")
 agent reviewer(model="opus", prompt="Review critically. Find issues.")
@@ -66,7 +66,7 @@ export final_code`
 		{
 			title: 'Research Agent',
 			description:
-				'Explain any concept simply. Define the agent once, run it on anything. The difference between typing shell commands and writing a script.',
+				'Define the agent once. Run it on anything. The difference between shell commands and a script.',
 			code: `# A reusable agent for explanations
 agent explainer(
   model="sonnet",
@@ -90,19 +90,19 @@ export explanation`
 
 	const concepts = [
 		{
-			title: 'The Model Is the Runtime',
+			title: 'Model as Runtime',
 			description:
-				"You write a program. You hand it to the model. The model becomes the runtime. It doesn't just execute steps—it interprets the program, manages dependencies, and decides how to proceed. That's not cleaner architecture. It enables something new."
+				'Frameworks call the model like a function. VVM hands it the program. The intelligence doesn\'t execute steps—it interprets them.'
 		},
 		{
-			title: 'Predicates That Understand',
+			title: 'Semantic Predicates',
 			description:
-				'When orchestration lives in your Python, conditions must be things Python can compute. So you write if confidence_score > 0.8—a proxy trying to capture "is this good enough?" in a number. When orchestration lives in the model, conditions can be semantic. "Is this production ready?" is a question the runtime can answer.'
+				'Python conditions must be computable: confidence > 0.8. VVM conditions are semantic: "Is this production ready?" That\'s a question, not a threshold.'
 		},
 		{
 			title: 'Open Standard',
 			description:
-				"VVM runs on Claude Code today. Codex, Amp, and OpenCode are planned. The spec is runtime-agnostic by design. We're betting on a paradigm, not a product. Standards win by being used."
+				'Claude Code today. Codex, Amp, OpenCode planned. The spec is public. Standards win by being used.'
 		}
 	];
 </script>
@@ -152,8 +152,7 @@ export explanation`
 		<div class="section-header">
 			<h2 class="section-title font-display">See It Work</h2>
 			<p class="section-description">
-				Simple tasks are fine as chat. Complex tasks need structure. VVM gives you that structure
-				without losing the intelligence.
+				Simple tasks are fine as chat. Complex tasks need structure.
 			</p>
 		</div>
 
@@ -163,11 +162,10 @@ export explanation`
 	<!-- Concepts Section -->
 	<section class="concepts">
 		<div class="section-header">
-			<h2 class="section-title font-display">Why This Matters</h2>
+			<h2 class="section-title font-display">How It Works</h2>
 			<p class="section-description">
-				You've been programming a computer without realizing it. Every time you use Claude Code,
-				Cursor, or Codex, you're instructing a machine that can read, write, execute, and iterate.
-				We've been programming it with chat messages. That works until it doesn't.
+				You've been programming a computer without realizing it. We've been doing it with chat
+				messages. That works until it doesn't.
 			</p>
 		</div>
 
