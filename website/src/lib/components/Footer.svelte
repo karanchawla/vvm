@@ -30,7 +30,7 @@
 			<div class="font-mono text-xs text-center mt-4 sm:mt-5 text-ink-muted dark:text-ink-dark-muted">
 				<p>
 					&copy; 2026
-					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-brand dark:hover:text-white focus-visible:text-brand dark:focus-visible:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:rounded-sm">
+					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="wavy-link">
 						Karan Chawla
 					</a>
 				</p>
@@ -40,12 +40,12 @@
 					href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
 					target="_blank"
 					rel="noopener noreferrer"
-					class="transition-colors hover:text-brand dark:hover:text-white focus-visible:text-brand dark:focus-visible:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:rounded-sm"
+					class="wavy-link"
 				>
 					$VVM
 				</a>
 				on
-				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-brand dark:hover:text-white focus-visible:text-brand dark:focus-visible:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:rounded-sm">BagsApp</a>
+				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="wavy-link">BagsApp</a>
 			</p>
 			</div>
 

@@ -137,8 +137,18 @@ html.dark {
 	color-scheme: dark;
 }
 
-/* Link styles */
+/* Link styles - base (no underline) */
 a {
+	text-decoration: none;
+	transition: color 0.15s ease;
+}
+
+a:focus-visible {
+	@apply outline-2 outline-offset-2 rounded-sm outline-brand/50 dark:outline-white/40;
+}
+
+/* Wavy link style - used in footer */
+.wavy-link {
 	@apply text-brand/70 decoration-brand/50 dark:text-ink-dark-secondary dark:decoration-white/30;
 	text-decoration-line: underline;
 	text-decoration-style: wavy;
@@ -147,11 +157,7 @@ a {
 	transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
-a:hover,
-a:focus-visible {
+.wavy-link:hover,
+.wavy-link:focus-visible {
 	@apply text-brand decoration-brand/80 dark:text-white dark:decoration-white/60;
-}
-
-a:focus-visible {
-	@apply outline-2 outline-offset-2 rounded-sm outline-brand/50 dark:outline-white/40;
 }

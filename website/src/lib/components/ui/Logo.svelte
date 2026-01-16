@@ -1,15 +1,10 @@
 <script lang="ts">
-	import { theme } from '$lib/stores/theme';
-
 	interface Props {
 		size?: number;
 		class?: string;
 	}
 
 	let { size = 48, class: className = '' }: Props = $props();
-
-	// Use white logo in dark mode for better visibility
-	let logoSrc = $derived($theme === 'dark' ? '/logo-white.svg' : '/logo.svg');
 </script>
 
 <a
@@ -18,11 +13,19 @@
 	aria-label="VVM Home"
 >
 	<img
-		src={logoSrc}
+		src="/logo.svg"
 		alt=""
 		width={size}
 		height={size}
-		class="block"
+		class="block dark:hidden"
+		aria-hidden="true"
+	/>
+	<img
+		src="/logo-white.svg"
+		alt=""
+		width={size}
+		height={size}
+		class="hidden dark:block"
 		aria-hidden="true"
 	/>
 </a>
