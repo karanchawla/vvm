@@ -29,9 +29,9 @@
 	}
 </script>
 
-<div class="example-carousel {className}">
+<div class="w-full {className}">
 	<!-- Tab navigation -->
-	<div class="tabs" role="tablist" aria-label="Code examples">
+	<div class="flex gap-2 mb-5 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Code examples">
 		{#each examples as example, i}
 			<button
 				role="tab"
@@ -39,8 +39,9 @@
 				aria-controls="example-panel-{i}"
 				id="example-tab-{i}"
 				tabindex={activeIndex === i ? 0 : -1}
-				class="tab"
-				class:active={activeIndex === i}
+				class="shrink-0 py-2.5 px-4 font-sans text-sm bg-transparent border rounded-md cursor-pointer transition-all whitespace-nowrap min-h-11 focus-visible:outline-2 focus-visible:outline-offset-2 {activeIndex === i
+					? 'text-brand dark:text-white border-brand/30 dark:border-white/25 bg-brand/10 dark:bg-white/10'
+					: 'text-ink-muted dark:text-ink-dark-muted border-edge dark:border-edge-dark hover:text-ink-secondary dark:hover:text-ink-dark-secondary hover:border-edge-hover dark:hover:border-edge-dark-hover'} focus-visible:outline-brand/50 dark:focus-visible:outline-white/40"
 				onclick={() => selectExample(i)}
 				onkeydown={(e) => handleKeydown(e, i)}
 			>
@@ -55,88 +56,22 @@
 			role="tabpanel"
 			id="example-panel-{i}"
 			aria-labelledby="example-tab-{i}"
-			class="panel"
-			class:active={activeIndex === i}
+			class={activeIndex === i ? 'block' : 'hidden'}
 			hidden={activeIndex !== i}
 		>
-			<p class="description">{example.description}</p>
+			<p class="font-sans text-sm sm:text-base leading-normal sm:leading-relaxed text-ink-muted dark:text-ink-dark-muted mb-3 sm:mb-4">
+				{example.description}
+			</p>
 			<CodeBlock code={example.code} />
 		</div>
 	{/each}
 </div>
 
 <style>
-	.example-carousel {
-		width: 100%;
-	}
-
-	.tabs {
-		display: flex;
-		gap: 0.5rem;
-		margin-bottom: 1.25rem;
-		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
-		padding-bottom: 0.25rem;
+	.scrollbar-none {
 		scrollbar-width: none;
 	}
-
-	.tabs::-webkit-scrollbar {
+	.scrollbar-none::-webkit-scrollbar {
 		display: none;
-	}
-
-	.tab {
-		flex-shrink: 0;
-		padding: 0.625rem 1rem;
-		font-family: var(--font-sans);
-		font-size: 0.8125rem;
-		font-weight: 400;
-		color: rgb(115 115 115);
-		background: transparent;
-		border: 1px solid rgb(229 229 229);
-		border-radius: 6px;
-		cursor: pointer;
-		transition: all 0.15s ease;
-		white-space: nowrap;
-		min-height: 44px;
-	}
-
-	.tab:hover {
-		color: rgb(64 64 64);
-		border-color: rgb(200 200 200);
-	}
-
-	.tab:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
-		outline-offset: 2px;
-	}
-
-	.tab.active {
-		color: oklch(0.476 0.296 265);
-		border-color: oklch(0.476 0.296 265 / 0.3);
-		background: oklch(0.476 0.296 265 / 0.05);
-	}
-
-	.panel {
-		display: none;
-	}
-
-	.panel.active {
-		display: block;
-	}
-
-	.description {
-		font-family: var(--font-sans);
-		font-size: 0.875rem;
-		line-height: 1.5;
-		color: rgb(115 115 115);
-		margin-bottom: 0.75rem;
-	}
-
-	@media (min-width: 640px) {
-		.description {
-			font-size: 0.9375rem;
-			line-height: 1.6;
-			margin-bottom: 1rem;
-		}
 	}
 </style>

@@ -3,24 +3,14 @@
 </script>
 
 <span
-	class="pro-badge inline-flex items-center gap-1.5 px-3 py-1 text-xs font-sans tracking-wider uppercase rounded-full {className}"
+	class="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-sans tracking-wider uppercase rounded-full bg-brand/10 dark:bg-white/10 text-brand dark:text-white border border-brand/20 dark:border-white/15 {className}"
 >
-	<span class="pulse-dot" aria-hidden="true"></span>
+	<span class="pulse-dot size-1.5 bg-brand dark:bg-white rounded-full" aria-hidden="true"></span>
 	<span>Pro Coming Soon</span>
 </span>
 
 <style>
-	.pro-badge {
-		background: oklch(0.476 0.296 265 / 0.1);
-		color: oklch(0.476 0.296 265);
-		border: 1px solid oklch(0.476 0.296 265 / 0.2);
-	}
-
 	.pulse-dot {
-		width: 6px;
-		height: 6px;
-		background: oklch(0.476 0.296 265);
-		border-radius: 50%;
 		animation: pulse 2s ease-in-out infinite;
 	}
 

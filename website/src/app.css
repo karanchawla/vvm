@@ -59,32 +59,105 @@
 	font-display: swap;
 }
 
+/* Use class-based dark mode */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-	--color-vvm-purple: oklch(.476 .296 265);
+	/* Fonts */
 	--font-display: 'Tobias', Georgia, serif;
 	--font-sans: 'Sohne', system-ui, sans-serif;
 	--font-mono: 'Sohne Mono', ui-monospace, monospace;
+
+	/* Brand */
+	--color-brand: oklch(0.476 0.296 265);
+	--color-brand-hover: oklch(0.42 0.296 265);
+
+	/* Surfaces - Light */
+	--color-surface: rgb(255 255 255);
+	--color-surface-secondary: rgb(250 250 250);
+	--color-surface-tertiary: rgb(245 245 245);
+	--color-surface-code: rgb(250 250 252);
+
+	/* Surfaces - Dark */
+	--color-surface-dark: rgb(13 13 15);
+	--color-surface-dark-secondary: rgb(22 22 26);
+	--color-surface-dark-tertiary: rgb(30 30 35);
+	--color-surface-dark-code: rgb(20 20 24);
+
+	/* Text - Light */
+	--color-ink: rgb(38 38 38);
+	--color-ink-secondary: rgb(64 64 64);
+	--color-ink-tertiary: rgb(100 100 100);
+	--color-ink-muted: rgb(115 115 115);
+	--color-ink-faint: rgb(163 163 163);
+
+	/* Text - Dark */
+	--color-ink-dark: rgb(248 248 250);
+	--color-ink-dark-secondary: rgb(212 212 216);
+	--color-ink-dark-tertiary: rgb(163 163 170);
+	--color-ink-dark-muted: rgb(142 142 150);
+	--color-ink-dark-faint: rgb(100 100 108);
+
+	/* Borders - Light */
+	--color-edge: rgb(229 229 229);
+	--color-edge-hover: rgb(200 200 200);
+
+	/* Borders - Dark */
+	--color-edge-dark: rgb(45 45 52);
+	--color-edge-dark-hover: rgb(70 70 78);
+
+	/* Code syntax - Light */
+	--color-syntax-text: rgb(55 55 60);
+	--color-syntax-comment: rgb(142 142 152);
+	--color-syntax-keyword: rgb(168 70 185);
+	--color-syntax-builtin: rgb(50 130 180);
+	--color-syntax-agent: rgb(30 130 90);
+	--color-syntax-predicate: rgb(195 90 50);
+	--color-syntax-string: rgb(65 130 70);
+	--color-syntax-number: rgb(28 100 180);
+	--color-syntax-key: rgb(130 90 165);
+
+	/* Code syntax - Dark */
+	--color-syntax-dark-text: rgb(212 212 220);
+	--color-syntax-dark-comment: rgb(128 128 140);
+	--color-syntax-dark-keyword: rgb(220 140 230);
+	--color-syntax-dark-builtin: rgb(100 180 230);
+	--color-syntax-dark-agent: rgb(80 200 140);
+	--color-syntax-dark-predicate: rgb(255 150 100);
+	--color-syntax-dark-string: rgb(130 200 140);
+	--color-syntax-dark-number: rgb(100 170 240);
+	--color-syntax-dark-key: rgb(190 150 220);
 }
 
-/* Link styles */
+/* Color scheme */
+html {
+	color-scheme: light;
+}
+html.dark {
+	color-scheme: dark;
+}
+
+/* Link styles - base (no underline) */
 a {
-	color: oklch(0.476 0.296 265 / 0.7);
-	text-decoration: underline;
+	text-decoration: none;
+	transition: color 0.15s ease;
+}
+
+a:focus-visible {
+	@apply outline-2 outline-offset-2 rounded-sm outline-brand/50 dark:outline-white/40;
+}
+
+/* Wavy link style - used in footer */
+.wavy-link {
+	@apply text-brand/70 decoration-brand/50 dark:text-ink-dark-secondary dark:decoration-white/30;
+	text-decoration-line: underline;
 	text-decoration-style: wavy;
-	text-decoration-color: oklch(0.476 0.296 265 / 0.5);
 	text-decoration-skip-ink: none;
 	text-underline-offset: 2px;
 	transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
-a:hover,
-a:focus-visible {
-	color: oklch(0.476 0.296 265);
-	text-decoration-color: oklch(0.476 0.296 265 / 0.8);
-}
-
-a:focus-visible {
-	outline: 2px solid oklch(0.476 0.296 265 / 0.5);
-	outline-offset: 2px;
-	border-radius: 2px;
+.wavy-link:hover,
+.wavy-link:focus-visible {
+	@apply text-brand decoration-brand/80 dark:text-white dark:decoration-white/60;
 }

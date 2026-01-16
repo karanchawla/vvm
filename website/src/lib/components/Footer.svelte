@@ -8,15 +8,12 @@
 	const rotatingWords = ['AI sessions', 'machines that understand', 'intelligent runtimes', 'workflows that judge', 'the new computer'];
 </script>
 
-<footer class="relative border-t border-neutral-200">
+<footer class="relative border-t border-edge dark:border-edge-dark">
 	<DottedGlowBackground
 		class="pointer-events-none"
 		opacity={0.15}
 		gap={14}
 		radius={1.5}
-		color="rgb(160, 160, 160)"
-		glowColor="oklch(0.476 0.296 265 / 0.6)"
-		backgroundOpacity={0}
 		speedMin={0.4}
 		speedMax={1.5}
 		speedScale={1}
@@ -26,49 +23,32 @@
 		<Container class="grid gap-2 sm:gap-3">
 			<Logo size={36} />
 
-			<p class="font-sans text-sm sm:text-base text-neutral-600 leading-relaxed pl-1">
-				A programming language for <TextLoop class="font-medium text-vvm-purple inline-block min-w-[12em]" children={rotatingWords} interval={3} />
+			<p class="font-sans text-sm sm:text-base leading-relaxed pl-1 text-ink-tertiary dark:text-ink-dark-tertiary">
+				A programming language for <TextLoop class="font-medium inline-block min-w-[12em] text-brand dark:text-white" children={rotatingWords} interval={3} />
 			</p>
 
-			<div class="font-mono text-xs text-neutral-500 text-center mt-4 sm:mt-5">
+			<div class="font-mono text-xs text-center mt-4 sm:mt-5 text-ink-muted dark:text-ink-dark-muted">
 				<p>
 					&copy; 2026
-					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="footer-link">
+					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="wavy-link">
 						Karan Chawla
 					</a>
 				</p>
-				<p class="text-neutral-400">
+				<p class="text-ink-faint dark:text-ink-dark-faint">
 				Supported by
 				<a
 					href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
 					target="_blank"
 					rel="noopener noreferrer"
-					class="footer-link"
+					class="wavy-link"
 				>
 					$VVM
 				</a>
 				on
-				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="footer-link">BagsApp</a>
+				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="wavy-link">BagsApp</a>
 			</p>
 			</div>
-			
+
 		</Container>
 	</Section>
 </footer>
-
-<style>
-	.footer-link {
-		transition: color 0.15s ease;
-	}
-
-	.footer-link:hover {
-		color: oklch(0.476 0.296 265);
-	}
-
-	.footer-link:focus-visible {
-		color: oklch(0.476 0.296 265);
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
-		outline-offset: 2px;
-		border-radius: 2px;
-	}
-</style>

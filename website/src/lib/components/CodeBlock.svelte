@@ -180,84 +180,46 @@
 	}
 </script>
 
-<figure class="code-block {className}" role="figure" aria-label="VVM code example">
-	<pre><code>{@html renderTokens(tokenize(code))}</code></pre>
+<figure
+	class="rounded-xl overflow-hidden shadow-sm bg-gradient-to-b from-surface-code to-surface-secondary dark:from-surface-dark-code dark:to-surface-dark-secondary border border-edge dark:border-edge-dark {className}"
+	aria-label="VVM code example"
+>
+	<pre class="m-0 p-4 sm:p-6 overflow-x-auto"><code class="font-mono text-xs sm:text-sm leading-relaxed sm:leading-7 block whitespace-pre text-syntax-text dark:text-syntax-dark-text">{@html renderTokens(tokenize(code))}</code></pre>
 </figure>
 
 <style>
-	.code-block {
-		background: linear-gradient(to bottom, rgb(252 252 253), rgb(248 248 250));
-		border: 1px solid rgb(232 232 237);
-		border-radius: 10px;
-		overflow: hidden;
-		box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
-	}
+	@reference "../../app.css";
 
-	pre {
-		margin: 0;
-		padding: 1rem;
-		overflow-x: auto;
-		-webkit-overflow-scrolling: touch;
-	}
-
-	@media (min-width: 640px) {
-		pre {
-			padding: 1.5rem;
-		}
-	}
-
-	code {
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		line-height: 1.7;
-		color: rgb(55 55 60);
-		display: block;
-		white-space: pre;
-	}
-
-	@media (min-width: 640px) {
-		code {
-			font-size: 0.8125rem;
-			line-height: 1.75;
-		}
-	}
-
-	/* Token styles */
+	/* Token styles using Tailwind colors */
 	:global(.tok-comment) {
-		color: rgb(142 142 152);
-		font-style: italic;
+		@apply text-syntax-comment dark:text-syntax-dark-comment italic;
 	}
 
 	:global(.tok-keyword) {
-		color: rgb(168 70 185);
-		font-weight: 500;
+		@apply text-syntax-keyword dark:text-syntax-dark-keyword font-medium;
 	}
 
 	:global(.tok-builtin) {
-		color: rgb(50 130 180);
-		font-weight: 500;
+		@apply text-syntax-builtin dark:text-syntax-dark-builtin font-medium;
 	}
 
 	:global(.tok-agent) {
-		color: rgb(30 130 90);
-		font-weight: 600;
+		@apply text-syntax-agent dark:text-syntax-dark-agent font-semibold;
 	}
 
 	:global(.tok-predicate) {
-		color: rgb(195 90 50);
-		font-weight: 500;
+		@apply text-syntax-predicate dark:text-syntax-dark-predicate font-medium;
 	}
 
 	:global(.tok-string) {
-		color: rgb(65 130 70);
+		@apply text-syntax-string dark:text-syntax-dark-string;
 	}
 
 	:global(.tok-number) {
-		color: rgb(28 100 180);
-		font-weight: 500;
+		@apply text-syntax-number dark:text-syntax-dark-number font-medium;
 	}
 
 	:global(.tok-key) {
-		color: rgb(130 90 165);
+		@apply text-syntax-key dark:text-syntax-dark-key;
 	}
 </style>

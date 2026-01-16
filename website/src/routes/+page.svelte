@@ -116,42 +116,49 @@ export translations`
 	/>
 </svelte:head>
 
-<div class="page transition-opacity duration-700 {mounted ? 'opacity-100' : 'opacity-0'}">
+<div class="px-4 transition-opacity duration-700 {mounted ? 'opacity-100' : 'opacity-0'}">
 	<!-- Hero Section -->
-	<section class="hero">
+	<section class="text-center py-10 sm:py-16 max-w-[42rem] mx-auto">
 		<ProBadge class="mb-8" />
 
-		<h1 class="title font-display">You've been prompting a computer. Now there's a language for it.</h1>
+		<h1 class="font-display text-2xl sm:text-[2.5rem] md:text-5xl font-light tracking-wide text-brand dark:text-white mb-5 leading-tight">
+			You've been prompting a computer. Now there's a language for it.
+		</h1>
 
-		<p class="subtitle">
+		<p class="font-sans text-base sm:text-lg leading-relaxed text-ink-tertiary dark:text-ink-dark-tertiary max-w-lg mx-auto mb-10">
 			A language model with tool access is a general-purpose computer. VVM lets you program it.
 		</p>
 
-		<div class="buttons">
-			<a href="https://github.com/karanchawla/vvm" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
-				<svg
-					class="github-icon"
-					viewBox="0 0 16 16"
-					fill="currentColor"
-					aria-hidden="true"
-				>
-					<path
-						d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
-					/>
+		<div class="flex gap-3 justify-center flex-wrap">
+			<a
+				href="https://github.com/karanchawla/vvm"
+				class="inline-flex items-center gap-2 py-3 px-5 font-sans text-sm rounded-md no-underline transition-all min-h-11 bg-brand text-white border border-brand hover:bg-brand-hover hover:border-brand-hover focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
+				<svg class="size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+					<path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
 				</svg>
 				Star on GitHub
 			</a>
-			<a href="https://github.com/karanchawla/vvm/tree/main/examples" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+			<a
+				href="https://github.com/karanchawla/vvm/tree/main/examples"
+				class="inline-flex items-center gap-2 py-3 px-5 font-sans text-sm rounded-md no-underline transition-all min-h-11 bg-surface dark:bg-surface-dark-secondary text-ink-secondary dark:text-ink-dark-secondary border border-edge dark:border-edge-dark hover:border-edge-hover dark:hover:border-edge-dark-hover hover:text-ink dark:hover:text-ink-dark focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
 				View Examples
 			</a>
 		</div>
 	</section>
 
 	<!-- Examples Section -->
-	<section class="examples">
-		<div class="section-header">
-			<h2 class="section-title font-display">See It Work</h2>
-			<p class="section-description">
+	<section class="max-w-3xl mx-auto py-8 sm:py-12">
+		<div class="mb-6 sm:mb-8">
+			<h2 class="font-display text-xl sm:text-2xl font-light tracking-wide text-brand dark:text-white mb-2 sm:mb-3">
+				See It Work
+			</h2>
+			<p class="font-sans text-sm sm:text-base leading-relaxed text-ink-tertiary dark:text-ink-dark-tertiary max-w-xl">
 				Simple tasks are fine as chat. Complex tasks need structure.
 			</p>
 		</div>
@@ -160,192 +167,17 @@ export translations`
 	</section>
 
 	<!-- How It Works Section -->
-	<section class="concepts">
-		<div class="section-header">
-			<h2 class="section-title font-display">How It Works</h2>
+	<section class="max-w-3xl mx-auto py-8 sm:py-12">
+		<div class="mb-6 sm:mb-8">
+			<h2 class="font-display text-xl sm:text-2xl font-light tracking-wide text-brand dark:text-white">
+				How It Works
+			</h2>
 		</div>
 
-		<div class="concepts-grid">
+		<div class="grid gap-4 grid-cols-1 sm:grid-cols-2">
 			{#each concepts as concept}
 				<ConceptCard title={concept.title} description={concept.description} />
 			{/each}
 		</div>
 	</section>
 </div>
-
-<style>
-	.page {
-		padding: 0 1rem;
-	}
-
-	/* Hero */
-	.hero {
-		text-align: center;
-		padding: 2.5rem 0 3rem;
-		max-width: 42rem;
-		margin: 0 auto;
-	}
-
-	@media (min-width: 640px) {
-		.hero {
-			padding: 4rem 0 5rem;
-		}
-	}
-
-	.title {
-		font-size: 2rem;
-		font-weight: 300;
-		letter-spacing: 0.01em;
-		color: oklch(0.476 0.296 265);
-		margin-bottom: 1.25rem;
-		line-height: 1.2;
-	}
-
-	@media (min-width: 640px) {
-		.title {
-			font-size: 2.5rem;
-		}
-	}
-
-	@media (min-width: 768px) {
-		.title {
-			font-size: 3rem;
-		}
-	}
-
-	.subtitle {
-		font-family: var(--font-sans);
-		font-size: 1rem;
-		line-height: 1.7;
-		color: rgb(100 100 100);
-		max-width: 32rem;
-		margin: 0 auto 2.5rem;
-	}
-
-	@media (min-width: 640px) {
-		.subtitle {
-			font-size: 1.0625rem;
-		}
-	}
-
-	.buttons {
-		display: flex;
-		gap: 0.75rem;
-		justify-content: center;
-		flex-wrap: wrap;
-	}
-
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1.25rem;
-		font-family: var(--font-sans);
-		font-size: 0.875rem;
-		font-weight: 400;
-		border-radius: 6px;
-		text-decoration: none;
-		transition: all 0.15s ease;
-		min-height: 44px;
-	}
-
-	.btn:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
-		outline-offset: 2px;
-	}
-
-	.btn-primary {
-		background: oklch(0.476 0.296 265);
-		color: white;
-		border: 1px solid oklch(0.476 0.296 265);
-	}
-
-	.btn-primary:hover {
-		background: oklch(0.42 0.296 265);
-		border-color: oklch(0.42 0.296 265);
-	}
-
-	.btn-secondary {
-		background: white;
-		color: rgb(64 64 64);
-		border: 1px solid rgb(229 229 229);
-	}
-
-	.btn-secondary:hover {
-		border-color: rgb(200 200 200);
-		color: rgb(38 38 38);
-	}
-
-	.github-icon {
-		width: 1rem;
-		height: 1rem;
-	}
-
-	/* Sections */
-	.examples,
-	.concepts {
-		max-width: 48rem;
-		margin: 0 auto;
-		padding: 2rem 0;
-	}
-
-	@media (min-width: 640px) {
-		.examples,
-		.concepts {
-			padding: 3rem 0;
-		}
-	}
-
-	.section-header {
-		margin-bottom: 1.5rem;
-	}
-
-	@media (min-width: 640px) {
-		.section-header {
-			margin-bottom: 2rem;
-		}
-	}
-
-	.section-title {
-		font-size: 1.25rem;
-		font-weight: 300;
-		letter-spacing: 0.01em;
-		color: oklch(0.476 0.296 265);
-		margin-bottom: 0.5rem;
-	}
-
-	@media (min-width: 640px) {
-		.section-title {
-			font-size: 1.5rem;
-			margin-bottom: 0.75rem;
-		}
-	}
-
-	.section-description {
-		font-family: var(--font-sans);
-		font-size: 0.875rem;
-		line-height: 1.6;
-		color: rgb(100 100 100);
-		max-width: 36rem;
-	}
-
-	@media (min-width: 640px) {
-		.section-description {
-			font-size: 0.9375rem;
-			line-height: 1.7;
-		}
-	}
-
-	/* Concepts Grid - 2x2 */
-	.concepts-grid {
-		display: grid;
-		gap: 1rem;
-		grid-template-columns: 1fr;
-	}
-
-	@media (min-width: 640px) {
-		.concepts-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-	}
-</style>

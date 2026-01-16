@@ -1,10 +1,10 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+
 	interface Props {
 		class?: string;
 		gap?: number;
 		radius?: number;
-		color?: string;
-		glowColor?: string;
 		opacity?: number;
 		backgroundOpacity?: number;
 		speedMin?: number;
@@ -16,8 +16,6 @@
 		class: className = '',
 		gap = 12,
 		radius = 2,
-		color = 'rgba(163, 163, 163, 0.7)',
-		glowColor = 'oklch(0.476 0.296 265 / 0.85)',
 		opacity = 0.6,
 		backgroundOpacity = 0,
 		speedMin = 0.4,
@@ -30,6 +28,22 @@
 
 	type Dot = { x: number; y: number; phase: number; speed: number };
 
+	// Get theme-aware colors from CSS custom properties
+	function getThemeColors(): { dotColor: string; glowColor: string } {
+		if (!browser) {
+			return {
+				dotColor: 'rgba(163, 163, 163, 0.7)',
+				glowColor: 'oklch(0.476 0.296 265 / 0.85)'
+			};
+		}
+
+		const styles = getComputedStyle(document.documentElement);
+		return {
+			dotColor: styles.getPropertyValue('--dot-color').trim() || 'rgba(163, 163, 163, 0.7)',
+			glowColor: styles.getPropertyValue('--glow-color').trim() || 'oklch(0.476 0.296 265 / 0.6)'
+		};
+	}
+
 	$effect(() => {
 		if (!canvasEl || !containerEl) return;
 
@@ -39,6 +53,7 @@
 		let raf = 0;
 		let stopped = false;
 		let dots: Dot[] = [];
+		let colors = getThemeColors();
 
 		const dpr = Math.max(1, window.devicePixelRatio || 1);
 
@@ -74,6 +89,9 @@
 		const draw = (now: number) => {
 			if (stopped) return;
 
+			// Update colors on each frame to react to theme changes
+			colors = getThemeColors();
+
 			const { width, height } = containerEl.getBoundingClientRect();
 
 			ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
@@ -95,7 +113,7 @@
 			}
 
 			ctx.save();
-			ctx.fillStyle = color;
+			ctx.fillStyle = colors.dotColor;
 
 			const time = (now / 1000) * Math.max(speedScale, 0);
 
@@ -107,7 +125,7 @@
 
 				if (a > 0.6) {
 					const glow = (a - 0.6) / 0.4;
-					ctx.shadowColor = glowColor;
+					ctx.shadowColor = colors.glowColor;
 					ctx.shadowBlur = 6 * glow;
 				} else {
 					ctx.shadowColor = 'transparent';

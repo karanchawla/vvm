@@ -4,10 +4,11 @@
 	interface Props {
 		children: string[];
 		class?: string;
+		style?: string;
 		interval?: number;
 	}
 
-	let { children, class: className = '', interval = 3 }: Props = $props();
+	let { children, class: className = '', style = '', interval = 3 }: Props = $props();
 
 	let currentIndex = $state(0);
 	let isAnimating = $state(false);
@@ -32,7 +33,7 @@
 	});
 </script>
 
-<span class="relative inline-flex overflow-hidden {className}" aria-live="polite" aria-atomic="true">
+<span class="relative inline-flex overflow-hidden {className}" {style} aria-live="polite" aria-atomic="true">
 	<span
 		class="text-loop-item"
 		class:animate-out={direction === 'out' && isAnimating}

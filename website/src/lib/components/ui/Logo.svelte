@@ -7,36 +7,25 @@
 	let { size = 48, class: className = '' }: Props = $props();
 </script>
 
-<a href="/" class="logo-link {className}" aria-label="VVM Home">
+<a
+	href="/"
+	class="inline-flex w-fit no-underline transition-opacity duration-200 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-4 focus-visible:rounded {className}"
+	aria-label="VVM Home"
+>
 	<img
 		src="/logo.svg"
 		alt=""
 		width={size}
 		height={size}
+		class="block dark:hidden"
+		aria-hidden="true"
+	/>
+	<img
+		src="/logo-white.svg"
+		alt=""
+		width={size}
+		height={size}
+		class="hidden dark:block"
 		aria-hidden="true"
 	/>
 </a>
-
-<style>
-	.logo-link {
-		display: inline-flex;
-		width: fit-content;
-		text-decoration: none;
-		transition: opacity 0.2s ease;
-	}
-
-	.logo-link:hover {
-		opacity: 0.8;
-		text-decoration: none;
-	}
-
-	.logo-link:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
-		outline-offset: 4px;
-		border-radius: 4px;
-	}
-
-	img {
-		display: block;
-	}
-</style>
