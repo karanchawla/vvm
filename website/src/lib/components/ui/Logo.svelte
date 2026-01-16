@@ -1,15 +1,20 @@
 <script lang="ts">
+	import { theme } from '$lib/stores/theme';
+
 	interface Props {
 		size?: number;
 		class?: string;
 	}
 
 	let { size = 48, class: className = '' }: Props = $props();
+
+	// Use white logo in dark mode for better visibility
+	let logoSrc = $derived($theme === 'dark' ? '/logo-white.svg' : '/logo.svg');
 </script>
 
 <a href="/" class="logo-link {className}" aria-label="VVM Home">
 	<img
-		src="/logo.svg"
+		src={logoSrc}
 		alt=""
 		width={size}
 		height={size}
@@ -31,7 +36,7 @@
 	}
 
 	.logo-link:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
+		outline: 2px solid var(--focus-ring);
 		outline-offset: 4px;
 		border-radius: 4px;
 	}

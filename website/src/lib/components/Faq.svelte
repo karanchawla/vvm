@@ -44,11 +44,11 @@
 
 <style>
 	.faq-container {
-		border-top: 1px solid rgb(229 229 229);
+		border-top: 1px solid var(--border-primary);
 	}
 
 	.faq-item {
-		border-bottom: 1px solid rgb(229 229 229);
+		border-bottom: 1px solid var(--border-primary);
 	}
 
 	.faq-question {
@@ -66,16 +66,16 @@
 		font-family: var(--font-sans);
 		font-size: 0.9375rem;
 		font-weight: 500;
-		color: rgb(38 38 38);
+		color: var(--text-primary);
 		transition: color 0.15s ease;
 	}
 
 	.faq-question:hover {
-		color: oklch(0.476 0.296 265);
+		color: var(--accent-color);
 	}
 
 	.faq-question:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
+		outline: 2px solid var(--focus-ring);
 		outline-offset: 2px;
 		border-radius: 2px;
 	}
@@ -86,13 +86,13 @@
 
 	.chevron {
 		flex-shrink: 0;
-		color: rgb(163 163 163);
+		color: var(--text-faint);
 		transition: transform 0.2s ease, color 0.15s ease;
 	}
 
 	.chevron.open {
 		transform: rotate(180deg);
-		color: oklch(0.476 0.296 265);
+		color: var(--accent-color);
 	}
 
 	.faq-answer {
@@ -110,7 +110,7 @@
 		font-family: var(--font-sans);
 		font-size: 0.875rem;
 		line-height: 1.7;
-		color: rgb(115 115 115);
+		color: var(--text-muted);
 		padding-bottom: 1.25rem;
 	}
 

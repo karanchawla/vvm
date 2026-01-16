@@ -11,15 +11,15 @@
 
 <style>
 	.pro-badge {
-		background: oklch(0.476 0.296 265 / 0.1);
-		color: oklch(0.476 0.296 265);
-		border: 1px solid oklch(0.476 0.296 265 / 0.2);
+		background: var(--accent-soft);
+		color: var(--accent-color);
+		border: 1px solid var(--accent-border);
 	}
 
 	.pulse-dot {
 		width: 6px;
 		height: 6px;
-		background: oklch(0.476 0.296 265);
+		background: var(--accent-color);
 		border-radius: 50%;
 		animation: pulse 2s ease-in-out infinite;
 	}

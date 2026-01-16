@@ -90,9 +90,9 @@
 		font-family: var(--font-sans);
 		font-size: 0.8125rem;
 		font-weight: 400;
-		color: rgb(115 115 115);
+		color: var(--text-muted);
 		background: transparent;
-		border: 1px solid rgb(229 229 229);
+		border: 1px solid var(--border-primary);
 		border-radius: 6px;
 		cursor: pointer;
 		transition: all 0.15s ease;
@@ -101,19 +101,19 @@
 	}
 
 	.tab:hover {
-		color: rgb(64 64 64);
-		border-color: rgb(200 200 200);
+		color: var(--text-secondary);
+		border-color: var(--border-hover);
 	}
 
 	.tab:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
+		outline: 2px solid var(--focus-ring);
 		outline-offset: 2px;
 	}
 
 	.tab.active {
-		color: oklch(0.476 0.296 265);
-		border-color: oklch(0.476 0.296 265 / 0.3);
-		background: oklch(0.476 0.296 265 / 0.05);
+		color: var(--accent-color);
+		border-color: var(--accent-border-active);
+		background: var(--accent-soft);
 	}
 
 	.panel {
@@ -128,7 +128,7 @@
 		font-family: var(--font-sans);
 		font-size: 0.875rem;
 		line-height: 1.5;
-		color: rgb(115 115 115);
+		color: var(--text-muted);
 		margin-bottom: 0.75rem;
 	}
 

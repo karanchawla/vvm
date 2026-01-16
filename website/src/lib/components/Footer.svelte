@@ -8,15 +8,12 @@
 	const rotatingWords = ['AI sessions', 'machines that understand', 'intelligent runtimes', 'workflows that judge', 'the new computer'];
 </script>
 
-<footer class="relative border-t border-neutral-200">
+<footer class="footer relative">
 	<DottedGlowBackground
 		class="pointer-events-none"
 		opacity={0.15}
 		gap={14}
 		radius={1.5}
-		color="rgb(160, 160, 160)"
-		glowColor="oklch(0.476 0.296 265 / 0.6)"
-		backgroundOpacity={0}
 		speedMin={0.4}
 		speedMax={1.5}
 		speedScale={1}
@@ -26,18 +23,18 @@
 		<Container class="grid gap-2 sm:gap-3">
 			<Logo size={36} />
 
-			<p class="font-sans text-sm sm:text-base text-neutral-600 leading-relaxed pl-1">
-				A programming language for <TextLoop class="font-medium text-vvm-purple inline-block min-w-[12em]" children={rotatingWords} interval={3} />
+			<p class="description font-sans text-sm sm:text-base leading-relaxed pl-1">
+				A programming language for <TextLoop class="font-medium inline-block min-w-[12em]" style="color: var(--accent-color)" children={rotatingWords} interval={3} />
 			</p>
 
-			<div class="font-mono text-xs text-neutral-500 text-center mt-4 sm:mt-5">
+			<div class="credits font-mono text-xs text-center mt-4 sm:mt-5">
 				<p>
 					&copy; 2026
 					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="footer-link">
 						Karan Chawla
 					</a>
 				</p>
-				<p class="text-neutral-400">
+				<p class="support-line">
 				Supported by
 				<a
 					href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
@@ -51,23 +48,39 @@
 				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="footer-link">BagsApp</a>
 			</p>
 			</div>
-			
+
 		</Container>
 	</Section>
 </footer>
 
 <style>
+	.footer {
+		border-top: 1px solid var(--border-primary);
+	}
+
+	.description {
+		color: var(--text-tertiary);
+	}
+
+	.credits {
+		color: var(--text-muted);
+	}
+
+	.support-line {
+		color: var(--text-faint);
+	}
+
 	.footer-link {
 		transition: color 0.15s ease;
 	}
 
 	.footer-link:hover {
-		color: oklch(0.476 0.296 265);
+		color: var(--accent-color);
 	}
 
 	.footer-link:focus-visible {
-		color: oklch(0.476 0.296 265);
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
+		color: var(--accent-color);
+		outline: 2px solid var(--focus-ring);
 		outline-offset: 2px;
 		border-radius: 2px;
 	}

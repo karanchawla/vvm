@@ -180,17 +180,17 @@
 	}
 </script>
 
-<figure class="code-block {className}" role="figure" aria-label="VVM code example">
+<figure class="code-block {className}" aria-label="VVM code example">
 	<pre><code>{@html renderTokens(tokenize(code))}</code></pre>
 </figure>
 
 <style>
 	.code-block {
-		background: linear-gradient(to bottom, rgb(252 252 253), rgb(248 248 250));
-		border: 1px solid rgb(232 232 237);
+		background: var(--bg-code);
+		border: 1px solid var(--code-border);
 		border-radius: 10px;
 		overflow: hidden;
-		box-shadow: 0 1px 3px rgb(0 0 0 / 0.04);
+		box-shadow: var(--shadow-subtle);
 	}
 
 	pre {
@@ -210,7 +210,7 @@
 		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		line-height: 1.7;
-		color: rgb(55 55 60);
+		color: var(--code-text);
 		display: block;
 		white-space: pre;
 	}
@@ -222,42 +222,42 @@
 		}
 	}
 
-	/* Token styles */
+	/* Token styles - using CSS custom properties */
 	:global(.tok-comment) {
-		color: rgb(142 142 152);
+		color: var(--code-comment);
 		font-style: italic;
 	}
 
 	:global(.tok-keyword) {
-		color: rgb(168 70 185);
+		color: var(--code-keyword);
 		font-weight: 500;
 	}
 
 	:global(.tok-builtin) {
-		color: rgb(50 130 180);
+		color: var(--code-builtin);
 		font-weight: 500;
 	}
 
 	:global(.tok-agent) {
-		color: rgb(30 130 90);
+		color: var(--code-agent);
 		font-weight: 600;
 	}
 
 	:global(.tok-predicate) {
-		color: rgb(195 90 50);
+		color: var(--code-predicate);
 		font-weight: 500;
 	}
 
 	:global(.tok-string) {
-		color: rgb(65 130 70);
+		color: var(--code-string);
 	}
 
 	:global(.tok-number) {
-		color: rgb(28 100 180);
+		color: var(--code-number);
 		font-weight: 500;
 	}
 
 	:global(.tok-key) {
-		color: rgb(130 90 165);
+		color: var(--code-key);
 	}
 </style>

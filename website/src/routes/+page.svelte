@@ -196,7 +196,7 @@ export translations`
 		font-size: 2rem;
 		font-weight: 300;
 		letter-spacing: 0.01em;
-		color: oklch(0.476 0.296 265);
+		color: var(--accent-color);
 		margin-bottom: 1.25rem;
 		line-height: 1.2;
 	}
@@ -217,7 +217,7 @@ export translations`
 		font-family: var(--font-sans);
 		font-size: 1rem;
 		line-height: 1.7;
-		color: rgb(100 100 100);
+		color: var(--text-tertiary);
 		max-width: 32rem;
 		margin: 0 auto 2.5rem;
 	}
@@ -250,30 +250,30 @@ export translations`
 	}
 
 	.btn:focus-visible {
-		outline: 2px solid oklch(0.476 0.296 265 / 0.5);
+		outline: 2px solid var(--focus-ring);
 		outline-offset: 2px;
 	}
 
 	.btn-primary {
-		background: oklch(0.476 0.296 265);
+		background: var(--brand-primary);
 		color: white;
-		border: 1px solid oklch(0.476 0.296 265);
+		border: 1px solid var(--brand-primary);
 	}
 
 	.btn-primary:hover {
-		background: oklch(0.42 0.296 265);
-		border-color: oklch(0.42 0.296 265);
+		background: var(--brand-primary-hover);
+		border-color: var(--brand-primary-hover);
 	}
 
 	.btn-secondary {
-		background: white;
-		color: rgb(64 64 64);
-		border: 1px solid rgb(229 229 229);
+		background: var(--btn-secondary-bg);
+		color: var(--btn-secondary-text);
+		border: 1px solid var(--btn-secondary-border);
 	}
 
 	.btn-secondary:hover {
-		border-color: rgb(200 200 200);
-		color: rgb(38 38 38);
+		border-color: var(--btn-secondary-border-hover);
+		color: var(--btn-secondary-text-hover);
 	}
 
 	.github-icon {
@@ -310,7 +310,7 @@ export translations`
 		font-size: 1.25rem;
 		font-weight: 300;
 		letter-spacing: 0.01em;
-		color: oklch(0.476 0.296 265);
+		color: var(--accent-color);
 		margin-bottom: 0.5rem;
 	}
 
@@ -325,7 +325,7 @@ export translations`
 		font-family: var(--font-sans);
 		font-size: 0.875rem;
 		line-height: 1.6;
-		color: rgb(100 100 100);
+		color: var(--text-tertiary);
 		max-width: 36rem;
 	}
 

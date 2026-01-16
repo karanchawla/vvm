@@ -105,7 +105,7 @@
 
 <style>
 	.section-title {
-		color: oklch(0.476 0.296 265);
+		color: var(--accent-color);
 		scroll-margin-top: 2rem;
 	}
 
@@ -121,7 +121,7 @@
 		font-family: var(--font-sans);
 		font-size: 1rem;
 		line-height: 1.75;
-		color: rgb(64 64 64);
+		color: var(--text-secondary);
 	}
 
 	.prose p {
@@ -132,21 +132,17 @@
 		margin-bottom: 0;
 	}
 
-	.prose em {
-		font-style: italic;
-	}
-
 	.prose code {
 		font-family: var(--font-mono);
 		font-size: 0.875em;
-		background: rgb(245 245 245);
+		background: var(--bg-tertiary);
 		padding: 0.125rem 0.375rem;
 		border-radius: 3px;
-		color: rgb(64 64 64);
+		color: var(--text-secondary);
 	}
 
 	.prose .emphasis {
 		font-weight: 500;
-		color: rgb(38 38 38);
+		color: var(--text-primary);
 	}
 </style>

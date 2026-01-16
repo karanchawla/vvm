@@ -14,10 +14,10 @@
 <style>
 	.concept-card {
 		padding: 1.25rem;
-		background: rgb(250 250 250);
-		border: 1px solid rgb(229 229 229);
+		background: var(--card-bg);
+		border: 1px solid var(--border-primary);
 		border-radius: 8px;
-		transition: border-color 0.15s ease;
+		transition: border-color 0.15s ease, background-color 0.15s ease;
 	}
 
 	@media (min-width: 640px) {
@@ -27,20 +27,20 @@
 	}
 
 	.concept-card:hover {
-		border-color: oklch(0.476 0.296 265 / 0.5);
-		background: rgb(248 248 250);
+		border-color: var(--accent-border);
+		background: var(--card-bg-hover);
 	}
 
 	.concept-card:focus-within {
-		border-color: oklch(0.476 0.296 265 / 0.5);
-		outline: 2px solid oklch(0.476 0.296 265 / 0.3);
+		border-color: var(--accent-border);
+		outline: 2px solid var(--accent-border-active);
 		outline-offset: 2px;
 	}
 
 	.title {
 		font-size: 1rem;
 		font-weight: 300;
-		color: oklch(0.476 0.296 265);
+		color: var(--accent-color);
 		margin-bottom: 0.5rem;
 		letter-spacing: 0.01em;
 	}
@@ -56,7 +56,7 @@
 		font-family: var(--font-sans);
 		font-size: 0.875rem;
 		line-height: 1.6;
-		color: rgb(64 64 64);
+		color: var(--text-secondary);
 		margin: 0;
 	}
 
