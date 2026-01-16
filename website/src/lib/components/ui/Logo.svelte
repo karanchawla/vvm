@@ -12,36 +12,17 @@
 	let logoSrc = $derived($theme === 'dark' ? '/logo-white.svg' : '/logo.svg');
 </script>
 
-<a href="/" class="logo-link {className}" aria-label="VVM Home">
+<a
+	href="/"
+	class="inline-flex w-fit no-underline transition-opacity duration-200 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-4 focus-visible:rounded {className}"
+	aria-label="VVM Home"
+>
 	<img
 		src={logoSrc}
 		alt=""
 		width={size}
 		height={size}
+		class="block"
 		aria-hidden="true"
 	/>
 </a>
-
-<style>
-	.logo-link {
-		display: inline-flex;
-		width: fit-content;
-		text-decoration: none;
-		transition: opacity 0.2s ease;
-	}
-
-	.logo-link:hover {
-		opacity: 0.8;
-		text-decoration: none;
-	}
-
-	.logo-link:focus-visible {
-		outline: 2px solid var(--focus-ring);
-		outline-offset: 4px;
-		border-radius: 4px;
-	}
-
-	img {
-		display: block;
-	}
-</style>

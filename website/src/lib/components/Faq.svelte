@@ -12,17 +12,17 @@
 	}
 </script>
 
-<div class="faq-container">
+<div class="border-t border-edge dark:border-edge-dark">
 	{#each items as item, index}
-		<div class="faq-item">
+		<div class="border-b border-edge dark:border-edge-dark">
 			<button
-				class="faq-question"
+				class="w-full min-h-11 flex items-center justify-between gap-4 py-3 bg-transparent border-none cursor-pointer text-left font-sans text-base font-medium text-ink dark:text-ink-dark transition-colors hover:text-brand dark:hover:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:rounded-sm"
 				onclick={() => toggle(index)}
 				aria-expanded={openIndex === index}
 				aria-controls="faq-answer-{index}"
 			>
-				<span class="question-text">{item.question}</span>
-				<span class="chevron" class:open={openIndex === index}>
+				<span class="flex-1">{item.question}</span>
+				<span class="shrink-0 text-ink-faint dark:text-ink-dark-faint transition-all duration-200 {openIndex === index ? 'rotate-180 text-brand dark:text-white' : ''}">
 					<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
 						<path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 					</svg>
@@ -30,91 +30,13 @@
 			</button>
 			<div
 				id="faq-answer-{index}"
-				class="faq-answer"
-				class:open={openIndex === index}
+				class="grid transition-all duration-250 ease-out {openIndex === index ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}"
 				aria-hidden={openIndex !== index}
 			>
-				<div class="answer-content">
+				<div class="overflow-hidden font-sans text-sm leading-relaxed text-ink-muted dark:text-ink-dark-muted {openIndex === index ? 'pb-5' : 'pb-0'}">
 					{item.answer}
 				</div>
 			</div>
 		</div>
 	{/each}
 </div>
-
-<style>
-	.faq-container {
-		border-top: 1px solid var(--border-primary);
-	}
-
-	.faq-item {
-		border-bottom: 1px solid var(--border-primary);
-	}
-
-	.faq-question {
-		width: 100%;
-		min-height: 44px;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 0.75rem 0;
-		background: none;
-		border: none;
-		cursor: pointer;
-		text-align: left;
-		font-family: var(--font-sans);
-		font-size: 0.9375rem;
-		font-weight: 500;
-		color: var(--text-primary);
-		transition: color 0.15s ease;
-	}
-
-	.faq-question:hover {
-		color: var(--accent-color);
-	}
-
-	.faq-question:focus-visible {
-		outline: 2px solid var(--focus-ring);
-		outline-offset: 2px;
-		border-radius: 2px;
-	}
-
-	.question-text {
-		flex: 1;
-	}
-
-	.chevron {
-		flex-shrink: 0;
-		color: var(--text-faint);
-		transition: transform 0.2s ease, color 0.15s ease;
-	}
-
-	.chevron.open {
-		transform: rotate(180deg);
-		color: var(--accent-color);
-	}
-
-	.faq-answer {
-		display: grid;
-		grid-template-rows: 0fr;
-		transition: grid-template-rows 0.25s ease;
-	}
-
-	.faq-answer.open {
-		grid-template-rows: 1fr;
-	}
-
-	.answer-content {
-		overflow: hidden;
-		font-family: var(--font-sans);
-		font-size: 0.875rem;
-		line-height: 1.7;
-		color: var(--text-muted);
-		padding-bottom: 1.25rem;
-	}
-
-	.faq-answer:not(.open) .answer-content {
-		padding-bottom: 0;
-	}
-</style>

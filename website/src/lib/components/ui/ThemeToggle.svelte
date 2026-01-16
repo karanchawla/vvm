@@ -5,7 +5,7 @@
 </script>
 
 <button
-	class="theme-toggle"
+	class="inline-flex items-center justify-center size-9 p-0 bg-transparent border border-edge dark:border-edge-dark rounded-md cursor-pointer text-ink-muted dark:text-ink-dark-muted transition-colors hover:text-brand dark:hover:text-white hover:border-edge-hover dark:hover:border-edge-dark-hover hover:bg-brand/10 dark:hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:text-brand dark:focus-visible:text-white"
 	onclick={() => theme.toggle()}
 	aria-label={currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
 	title={currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -13,7 +13,7 @@
 	{#if currentTheme === 'dark'}
 		<!-- Sun icon for light mode -->
 		<svg
-			class="icon"
+			class="size-4.5"
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
@@ -35,7 +35,7 @@
 	{:else}
 		<!-- Moon icon for dark mode -->
 		<svg
-			class="icon"
+			class="size-4.5"
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
@@ -48,37 +48,3 @@
 		</svg>
 	{/if}
 </button>
-
-<style>
-	.theme-toggle {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		padding: 0;
-		background: transparent;
-		border: 1px solid var(--border-primary);
-		border-radius: 6px;
-		cursor: pointer;
-		color: var(--text-muted);
-		transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-	}
-
-	.theme-toggle:hover {
-		color: var(--accent-color);
-		border-color: var(--border-hover);
-		background: var(--accent-soft);
-	}
-
-	.theme-toggle:focus-visible {
-		outline: 2px solid var(--focus-ring);
-		outline-offset: 2px;
-		color: var(--accent-color);
-	}
-
-	.icon {
-		width: 18px;
-		height: 18px;
-	}
-</style>

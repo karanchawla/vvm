@@ -5,45 +5,18 @@
 
 <header class="sticky top-2 sm:top-3 md:top-4 z-50 px-2 sm:px-4 md:px-6">
 	<nav
-		class="nav-container mx-auto flex max-w-5xl items-center justify-between rounded-lg px-2 py-2.5 backdrop-blur-md"
+		class="mx-auto flex max-w-5xl items-center justify-between rounded-lg px-2 py-2.5 backdrop-blur-md bg-white/80 dark:bg-surface-dark/85 border border-edge dark:border-edge-dark shadow-sm"
 		aria-label="Main navigation"
 	>
 		<Logo size={28} class="ml-0" />
 		<div class="flex items-center gap-2">
-			<a href="/about" class="nav-link font-mono text-xs tracking-wider">About</a>
+			<a
+				href="/about"
+				class="nav-link inline-flex items-center justify-center no-underline transition-colors py-3 px-4 -my-3 rounded-md min-h-11 font-mono text-xs tracking-wider text-ink-muted dark:text-ink-dark-muted hover:text-brand dark:hover:text-white focus-visible:text-brand dark:focus-visible:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2"
+			>
+				About
+			</a>
 			<ThemeToggle />
 		</div>
 	</nav>
 </header>
-
-<style>
-	.nav-container {
-		background: var(--header-bg);
-		border: 1px solid var(--border-primary);
-		box-shadow: var(--shadow-subtle);
-	}
-
-	.nav-link {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		text-decoration: none;
-		transition: color 0.15s ease;
-		padding: 0.75rem 1rem;
-		margin: -0.75rem 0;
-		border-radius: 6px;
-		min-height: 44px;
-		color: var(--text-muted);
-	}
-
-	.nav-link:hover {
-		color: var(--accent-color);
-		text-decoration: none;
-	}
-
-	.nav-link:focus-visible {
-		color: var(--accent-color);
-		outline: 2px solid var(--focus-ring);
-		outline-offset: 2px;
-	}
-</style>

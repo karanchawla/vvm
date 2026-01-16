@@ -12,7 +12,7 @@
 	});
 </script>
 
-<div class="min-h-screen flex flex-col" style="background: var(--bg-primary);">
+<div class="min-h-screen flex flex-col bg-surface dark:bg-surface-dark text-ink-secondary dark:text-ink-dark-secondary">
 	<Header />
 	<main class="flex-1 flex flex-col">
 		{@render children()}
@@ -21,8 +21,12 @@
 </div>
 
 <style>
+	@reference "../app.css";
+
 	:global(html, body) {
 		height: 100%;
-		background: var(--bg-primary);
+	}
+	:global(body) {
+		@apply bg-surface dark:bg-surface-dark;
 	}
 </style>

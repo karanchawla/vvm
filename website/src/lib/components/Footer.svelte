@@ -8,7 +8,7 @@
 	const rotatingWords = ['AI sessions', 'machines that understand', 'intelligent runtimes', 'workflows that judge', 'the new computer'];
 </script>
 
-<footer class="footer relative">
+<footer class="relative border-t border-edge dark:border-edge-dark">
 	<DottedGlowBackground
 		class="pointer-events-none"
 		opacity={0.15}
@@ -23,65 +23,32 @@
 		<Container class="grid gap-2 sm:gap-3">
 			<Logo size={36} />
 
-			<p class="description font-sans text-sm sm:text-base leading-relaxed pl-1">
-				A programming language for <TextLoop class="font-medium inline-block min-w-[12em]" style="color: var(--accent-color)" children={rotatingWords} interval={3} />
+			<p class="font-sans text-sm sm:text-base leading-relaxed pl-1 text-ink-tertiary dark:text-ink-dark-tertiary">
+				A programming language for <TextLoop class="font-medium inline-block min-w-[12em] text-brand dark:text-white" children={rotatingWords} interval={3} />
 			</p>
 
-			<div class="credits font-mono text-xs text-center mt-4 sm:mt-5">
+			<div class="font-mono text-xs text-center mt-4 sm:mt-5 text-ink-muted dark:text-ink-dark-muted">
 				<p>
 					&copy; 2026
-					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="footer-link">
+					<a href="https://x.com/thekaranchawla" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-brand dark:hover:text-white focus-visible:text-brand dark:focus-visible:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:rounded-sm">
 						Karan Chawla
 					</a>
 				</p>
-				<p class="support-line">
+				<p class="text-ink-faint dark:text-ink-dark-faint">
 				Supported by
 				<a
 					href="https://bags.fm/HWbNnWxMokZygvhKnYbDfZfRaokXHvF3uVHvnKSdBAGS"
 					target="_blank"
 					rel="noopener noreferrer"
-					class="footer-link"
+					class="transition-colors hover:text-brand dark:hover:text-white focus-visible:text-brand dark:focus-visible:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:rounded-sm"
 				>
 					$VVM
 				</a>
 				on
-				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="footer-link">BagsApp</a>
+				<a href="https://x.com/BagsApp" target="_blank" rel="noopener noreferrer" class="transition-colors hover:text-brand dark:hover:text-white focus-visible:text-brand dark:focus-visible:text-white focus-visible:outline-2 focus-visible:outline-brand/50 dark:focus-visible:outline-white/40 focus-visible:outline-offset-2 focus-visible:rounded-sm">BagsApp</a>
 			</p>
 			</div>
 
 		</Container>
 	</Section>
 </footer>
-
-<style>
-	.footer {
-		border-top: 1px solid var(--border-primary);
-	}
-
-	.description {
-		color: var(--text-tertiary);
-	}
-
-	.credits {
-		color: var(--text-muted);
-	}
-
-	.support-line {
-		color: var(--text-faint);
-	}
-
-	.footer-link {
-		transition: color 0.15s ease;
-	}
-
-	.footer-link:hover {
-		color: var(--accent-color);
-	}
-
-	.footer-link:focus-visible {
-		color: var(--accent-color);
-		outline: 2px solid var(--focus-ring);
-		outline-offset: 2px;
-		border-radius: 2px;
-	}
-</style>

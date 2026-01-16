@@ -34,12 +34,12 @@
 	<meta name="description" content="VVM is a programming language for AI agents. Learn how language models become runtimes and why that changes everything." />
 </svelte:head>
 
-<article class="about-page py-12 sm:py-16 px-4 sm:px-6">
+<article class="py-12 sm:py-16 px-4 sm:px-6">
 	<div class="max-w-2xl mx-auto">
 		<!-- Intro -->
 		<header class="mb-16">
 			<h1 class="sr-only">About VVM</h1>
-			<div class="prose">
+			<div class="font-sans text-base leading-7 text-ink-secondary dark:text-ink-dark-secondary space-y-5">
 				<p>You've been programming a computer without realizing it.</p>
 				<p>Every time you use Claude Code, Cursor, or Codex, you're instructing a machine that can read files, write code, execute commands, and iterate on its own outputs. That's not an assistant. That's a general-purpose computer that understands meaning.</p>
 				<p>We've been programming it with chat messages. That works until it doesn't.</p>
@@ -47,102 +47,58 @@
 		</header>
 
 		<!-- When English Breaks Down -->
-		<section class="content-section">
-			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
+		<section class="mb-16">
+			<h2 class="font-display text-xl sm:text-2xl tracking-wide font-light mb-6 text-brand dark:text-white scroll-mt-8">
 				When English Breaks Down
 			</h2>
-			<div class="prose">
+			<div class="font-sans text-base leading-7 text-ink-secondary dark:text-ink-dark-secondary space-y-5">
 				<p>Simple tasks are fine. "Refactor this function" needs no specification.</p>
 				<p>Complex tasks fall apart. You want three analyses to run in parallel, feed into a synthesis, retry on failure, and only proceed if the output meets a quality bar. You can say that in English. But which parts are instructions and which are suggestions? What happens if you're ambiguous about the retry logic? The model will do something. It might not be what you meant.</p>
-				<p class="emphasis">English handles intent. It can't handle structure.</p>
+				<p class="font-medium text-ink dark:text-ink-dark">English handles intent. It can't handle structure.</p>
 			</div>
 		</section>
 
 		<!-- The model is the runtime -->
-		<section class="content-section">
-			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
+		<section class="mb-16">
+			<h2 class="font-display text-xl sm:text-2xl tracking-wide font-light mb-6 text-brand dark:text-white scroll-mt-8">
 				The Model Is the Runtime
 			</h2>
-			<div class="prose">
+			<div class="font-sans text-base leading-7 text-ink-secondary dark:text-ink-dark-secondary space-y-5">
 				<p>VVM is a programming language for AI sessions.</p>
 				<p>You write a program. You hand it to the model. The model becomes the runtime.</p>
 				<p>This inverts the usual pattern. Frameworks like LangChain put the orchestration in your code and treat the model as a function to call. VVM puts the orchestration inside the model. The intelligence doesn't just execute steps—it interprets the program, manages dependencies, and makes decisions about how to proceed.</p>
-				<p class="emphasis">That's not just cleaner architecture. It enables something new.</p>
+				<p class="font-medium text-ink dark:text-ink-dark">That's not just cleaner architecture. It enables something new.</p>
 			</div>
 		</section>
 
 		<!-- Semantic Predicates -->
-		<section class="content-section">
-			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
+		<section class="mb-16">
+			<h2 class="font-display text-xl sm:text-2xl tracking-wide font-light mb-6 text-brand dark:text-white scroll-mt-8">
 				Predicates That Understand
 			</h2>
-			<div class="prose">
-				<p>When orchestration lives in your Python, branching conditions must be things Python can compute. So you write <code>if confidence_score > 0.8</code>—a proxy metric, trying to capture "is this good enough?" in a number.</p>
+			<div class="font-sans text-base leading-7 text-ink-secondary dark:text-ink-dark-secondary space-y-5">
+				<p>When orchestration lives in your Python, branching conditions must be things Python can compute. So you write <code class="font-mono text-[0.875em] bg-surface-tertiary dark:bg-surface-dark-tertiary px-1.5 py-0.5 rounded">if confidence_score > 0.8</code>—a proxy metric, trying to capture "is this good enough?" in a number.</p>
 				<p>When orchestration lives in the model, conditions can be semantic. "Is this production ready?" isn't a threshold. It's a question the runtime can answer by reading and judging. The model operates in meaning-space. Now your programs can too.</p>
 			</div>
 		</section>
 
 		<!-- Open Standard -->
-		<section class="content-section">
-			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-6">
+		<section class="mb-16">
+			<h2 class="font-display text-xl sm:text-2xl tracking-wide font-light mb-6 text-brand dark:text-white scroll-mt-8">
 				Open Standard
 			</h2>
-			<div class="prose">
+			<div class="font-sans text-base leading-7 text-ink-secondary dark:text-ink-dark-secondary space-y-5">
 				<p>VVM is open source.</p>
 				<p>Today that's Claude Code. Codex, Amp, and OpenCode are planned. The language is runtime-agnostic by design.</p>
 			</div>
 		</section>
 
 		<!-- FAQ -->
-		<section class="content-section">
-			<h2 class="section-title font-display text-xl sm:text-2xl tracking-wide font-light mb-8">
+		<section>
+			<h2 class="font-display text-xl sm:text-2xl tracking-wide font-light mb-8 text-brand dark:text-white scroll-mt-8">
 				FAQ
 			</h2>
 			<Faq items={faqItems} />
 		</section>
 	</div>
 </article>
-
-<style>
-	.section-title {
-		color: var(--accent-color);
-		scroll-margin-top: 2rem;
-	}
-
-	.content-section {
-		margin-bottom: 4rem;
-	}
-
-	.content-section:last-child {
-		margin-bottom: 0;
-	}
-
-	.prose {
-		font-family: var(--font-sans);
-		font-size: 1rem;
-		line-height: 1.75;
-		color: var(--text-secondary);
-	}
-
-	.prose p {
-		margin-bottom: 1.25rem;
-	}
-
-	.prose p:last-child {
-		margin-bottom: 0;
-	}
-
-	.prose code {
-		font-family: var(--font-mono);
-		font-size: 0.875em;
-		background: var(--bg-tertiary);
-		padding: 0.125rem 0.375rem;
-		border-radius: 3px;
-		color: var(--text-secondary);
-	}
-
-	.prose .emphasis {
-		font-weight: 500;
-		color: var(--text-primary);
-	}
-</style>

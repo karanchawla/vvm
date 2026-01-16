@@ -59,155 +59,89 @@
 	font-display: swap;
 }
 
+/* Use class-based dark mode */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-	--color-vvm-purple: oklch(.476 .296 265);
+	/* Fonts */
 	--font-display: 'Tobias', Georgia, serif;
 	--font-sans: 'Sohne', system-ui, sans-serif;
 	--font-mono: 'Sohne Mono', ui-monospace, monospace;
+
+	/* Brand */
+	--color-brand: oklch(0.476 0.296 265);
+	--color-brand-hover: oklch(0.42 0.296 265);
+
+	/* Surfaces - Light */
+	--color-surface: rgb(255 255 255);
+	--color-surface-secondary: rgb(250 250 250);
+	--color-surface-tertiary: rgb(245 245 245);
+	--color-surface-code: rgb(250 250 252);
+
+	/* Surfaces - Dark */
+	--color-surface-dark: rgb(13 13 15);
+	--color-surface-dark-secondary: rgb(22 22 26);
+	--color-surface-dark-tertiary: rgb(30 30 35);
+	--color-surface-dark-code: rgb(20 20 24);
+
+	/* Text - Light */
+	--color-ink: rgb(38 38 38);
+	--color-ink-secondary: rgb(64 64 64);
+	--color-ink-tertiary: rgb(100 100 100);
+	--color-ink-muted: rgb(115 115 115);
+	--color-ink-faint: rgb(163 163 163);
+
+	/* Text - Dark */
+	--color-ink-dark: rgb(248 248 250);
+	--color-ink-dark-secondary: rgb(212 212 216);
+	--color-ink-dark-tertiary: rgb(163 163 170);
+	--color-ink-dark-muted: rgb(142 142 150);
+	--color-ink-dark-faint: rgb(100 100 108);
+
+	/* Borders - Light */
+	--color-edge: rgb(229 229 229);
+	--color-edge-hover: rgb(200 200 200);
+
+	/* Borders - Dark */
+	--color-edge-dark: rgb(45 45 52);
+	--color-edge-dark-hover: rgb(70 70 78);
+
+	/* Code syntax - Light */
+	--color-syntax-text: rgb(55 55 60);
+	--color-syntax-comment: rgb(142 142 152);
+	--color-syntax-keyword: rgb(168 70 185);
+	--color-syntax-builtin: rgb(50 130 180);
+	--color-syntax-agent: rgb(30 130 90);
+	--color-syntax-predicate: rgb(195 90 50);
+	--color-syntax-string: rgb(65 130 70);
+	--color-syntax-number: rgb(28 100 180);
+	--color-syntax-key: rgb(130 90 165);
+
+	/* Code syntax - Dark */
+	--color-syntax-dark-text: rgb(212 212 220);
+	--color-syntax-dark-comment: rgb(128 128 140);
+	--color-syntax-dark-keyword: rgb(220 140 230);
+	--color-syntax-dark-builtin: rgb(100 180 230);
+	--color-syntax-dark-agent: rgb(80 200 140);
+	--color-syntax-dark-predicate: rgb(255 150 100);
+	--color-syntax-dark-string: rgb(130 200 140);
+	--color-syntax-dark-number: rgb(100 170 240);
+	--color-syntax-dark-key: rgb(190 150 220);
 }
 
-/* ===== THEME VARIABLES ===== */
-:root {
-	/* Brand colors */
-	--brand-primary: oklch(0.476 0.296 265);
-	--brand-primary-hover: oklch(0.42 0.296 265);
-
-	/* Background colors */
-	--bg-primary: rgb(255 255 255);
-	--bg-secondary: rgb(250 250 250);
-	--bg-tertiary: rgb(245 245 245);
-	--bg-elevated: rgb(255 255 255);
-	--bg-code: linear-gradient(to bottom, rgb(252 252 253), rgb(248 248 250));
-
-	/* Text colors */
-	--text-primary: rgb(38 38 38);
-	--text-secondary: rgb(64 64 64);
-	--text-tertiary: rgb(100 100 100);
-	--text-muted: rgb(115 115 115);
-	--text-faint: rgb(163 163 163);
-
-	/* Border colors */
-	--border-primary: rgb(229 229 229);
-	--border-secondary: rgb(200 200 200);
-	--border-hover: rgb(200 200 200);
-
-	/* Link colors */
-	--link-color: oklch(0.476 0.296 265 / 0.7);
-	--link-color-hover: oklch(0.476 0.296 265);
-	--link-decoration: oklch(0.476 0.296 265 / 0.5);
-	--link-decoration-hover: oklch(0.476 0.296 265 / 0.8);
-
-	/* Focus */
-	--focus-ring: oklch(0.476 0.296 265 / 0.5);
-
-	/* Accent (brand in light, white in dark) */
-	--accent-color: oklch(0.476 0.296 265);
-	--accent-soft: oklch(0.476 0.296 265 / 0.1);
-	--accent-border: oklch(0.476 0.296 265 / 0.2);
-	--accent-border-active: oklch(0.476 0.296 265 / 0.3);
-
-	/* Code syntax - Light mode */
-	--code-text: rgb(55 55 60);
-	--code-comment: rgb(142 142 152);
-	--code-keyword: rgb(168 70 185);
-	--code-builtin: rgb(50 130 180);
-	--code-agent: rgb(30 130 90);
-	--code-predicate: rgb(195 90 50);
-	--code-string: rgb(65 130 70);
-	--code-number: rgb(28 100 180);
-	--code-key: rgb(130 90 165);
-	--code-border: rgb(232 232 237);
-
-	/* Component specific */
-	--card-bg: rgb(250 250 250);
-	--card-bg-hover: rgb(248 248 250);
-	--header-bg: rgb(255 255 255 / 0.8);
-	--shadow-subtle: 0 1px 3px rgb(0 0 0 / 0.04);
-
-	/* Button secondary */
-	--btn-secondary-bg: rgb(255 255 255);
-	--btn-secondary-text: rgb(64 64 64);
-	--btn-secondary-text-hover: rgb(38 38 38);
-	--btn-secondary-border: rgb(229 229 229);
-	--btn-secondary-border-hover: rgb(200 200 200);
-
-	/* Glow effects */
-	--glow-color: oklch(0.476 0.296 265 / 0.6);
-	--dot-color: rgba(163, 163, 163, 0.7);
+/* Color scheme */
+html {
+	color-scheme: light;
 }
-
-/* ===== DARK MODE ===== */
-.dark {
-	/* Background colors - rich dark backgrounds */
-	--bg-primary: rgb(13 13 15);
-	--bg-secondary: rgb(22 22 26);
-	--bg-tertiary: rgb(30 30 35);
-	--bg-elevated: rgb(26 26 30);
-	--bg-code: linear-gradient(to bottom, rgb(22 22 26), rgb(18 18 22));
-
-	/* Text colors - crisp and readable */
-	--text-primary: rgb(248 248 250);
-	--text-secondary: rgb(212 212 216);
-	--text-tertiary: rgb(163 163 170);
-	--text-muted: rgb(142 142 150);
-	--text-faint: rgb(100 100 108);
-
-	/* Border colors - subtle but visible */
-	--border-primary: rgb(45 45 52);
-	--border-secondary: rgb(55 55 62);
-	--border-hover: rgb(70 70 78);
-
-	/* Links - white with purple accents in dark mode */
-	--link-color: rgb(220 220 225);
-	--link-color-hover: rgb(255 255 255);
-	--link-decoration: rgb(255 255 255 / 0.3);
-	--link-decoration-hover: rgb(255 255 255 / 0.6);
-
-	/* Focus - visible on dark backgrounds */
-	--focus-ring: rgb(255 255 255 / 0.4);
-
-	/* Accent - white in dark mode as requested */
-	--accent-color: rgb(255 255 255);
-	--accent-soft: rgb(255 255 255 / 0.08);
-	--accent-border: rgb(255 255 255 / 0.15);
-	--accent-border-active: rgb(255 255 255 / 0.25);
-
-	/* Code syntax - Dark mode (vibrant and readable) */
-	--code-text: rgb(212 212 220);
-	--code-comment: rgb(128 128 140);
-	--code-keyword: rgb(220 140 230);
-	--code-builtin: rgb(100 180 230);
-	--code-agent: rgb(80 200 140);
-	--code-predicate: rgb(255 150 100);
-	--code-string: rgb(130 200 140);
-	--code-number: rgb(100 170 240);
-	--code-key: rgb(190 150 220);
-	--code-border: rgb(45 45 52);
-
-	/* Component specific */
-	--card-bg: rgb(22 22 26);
-	--card-bg-hover: rgb(28 28 33);
-	--header-bg: rgb(13 13 15 / 0.85);
-	--shadow-subtle: 0 1px 3px rgb(0 0 0 / 0.3);
-
-	/* Button secondary */
-	--btn-secondary-bg: rgb(26 26 30);
-	--btn-secondary-text: rgb(200 200 205);
-	--btn-secondary-text-hover: rgb(255 255 255);
-	--btn-secondary-border: rgb(50 50 58);
-	--btn-secondary-border-hover: rgb(70 70 78);
-
-	/* Glow effects */
-	--glow-color: rgb(255 255 255 / 0.4);
-	--dot-color: rgba(120, 120, 130, 0.6);
+html.dark {
+	color-scheme: dark;
 }
 
 /* Link styles */
 a {
-	color: var(--link-color);
-	text-decoration: underline;
+	@apply text-brand/70 decoration-brand/50 dark:text-ink-dark-secondary dark:decoration-white/30;
+	text-decoration-line: underline;
 	text-decoration-style: wavy;
-	text-decoration-color: var(--link-decoration);
 	text-decoration-skip-ink: none;
 	text-underline-offset: 2px;
 	transition: color 0.15s ease, text-decoration-color 0.15s ease;
@@ -215,32 +149,9 @@ a {
 
 a:hover,
 a:focus-visible {
-	color: var(--link-color-hover);
-	text-decoration-color: var(--link-decoration-hover);
+	@apply text-brand decoration-brand/80 dark:text-white dark:decoration-white/60;
 }
 
 a:focus-visible {
-	outline: 2px solid var(--focus-ring);
-	outline-offset: 2px;
-	border-radius: 2px;
-}
-
-/* Smooth theme transitions */
-html {
-	color-scheme: light;
-}
-
-html.dark {
-	color-scheme: dark;
-}
-
-/* Transition for theme switching - only on interactive elements */
-@media (prefers-reduced-motion: no-preference) {
-	html:not(.no-transition) body,
-	html:not(.no-transition) header,
-	html:not(.no-transition) footer,
-	html:not(.no-transition) nav,
-	html:not(.no-transition) main {
-		transition: background-color 0.3s ease, border-color 0.3s ease;
-	}
+	@apply outline-2 outline-offset-2 rounded-sm outline-brand/50 dark:outline-white/40;
 }
