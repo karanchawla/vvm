@@ -192,6 +192,23 @@ The `examples/` directory has 23 programs, progressively introducing features:
 
 ---
 
+## Repository Structure
+
+This repository contains the core VVM language:
+
+```
+vvm/
+├── skills/vvm/     # Language specification (spec.md, vvm.md)
+├── examples/       # 23 tutorial programs
+├── commands/       # Claude Code slash commands
+├── .claude/        # Claude Code integration
+└── .claude-plugin/ # Plugin manifest
+```
+
+The website and application live in a separate repository: [vvm-app](https://github.com/karanchawla/vvm-app)
+
+---
+
 ## License
 
 MIT
