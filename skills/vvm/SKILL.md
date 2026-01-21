@@ -4,8 +4,8 @@ description: |
   VVM (Vibe Virtual Machine) is a language for agentic programs where the LLM is the runtime.
 
   Activate when: running .vvm files, mentioning VVM, calling /vvm-boot, /vvm-run, /vvm-compile,
-  or orchestrating multi-agent workflows. Read spec.md for the language specification and
-  vvm.md for execution semantics.
+  /vvm-generate, or orchestrating multi-agent workflows. Read spec.md for the language specification
+  and vvm.md for execution semantics.
 ---
 
 # VVM Skill
@@ -18,7 +18,7 @@ VVM (Vibe Virtual Machine) is a language for writing agentic programs where the 
 
 Activate this skill when:
 
-1. User runs `/vvm-boot`, `/vvm-compile`, or `/vvm-run`
+1. User runs `/vvm-boot`, `/vvm-compile`, `/vvm-run`, or `/vvm-generate`
 2. User opens or references a `.vvm` file
 3. User asks about VVM syntax, semantics, or patterns
 4. User wants to create an AI-powered workflow
@@ -243,6 +243,10 @@ Validate a VVM program without executing. Reports errors and warnings with line 
 ### /vvm-run <file.vvm>
 
 Execute a VVM program. You become the VVM runtime and execute statements sequentially, spawning subagents for agent calls.
+
+### /vvm-generate <description>
+
+Generate a VVM program from a natural language description. Analyzes intent, maps to VVM constructs, applies best practices, and produces well-structured code. Asks clarifying questions if the request is ambiguous.
 
 ---
 
