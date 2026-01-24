@@ -82,14 +82,31 @@ Execute each statement type as follows:
 
 1. Resolve the agent reference (named, `.with()`, or inline `@{...}`)
 2. Determine input: explicit first argument, or implicit `it`
-3. Evaluate option arguments (`retry`, `timeout`, etc.)
+3. Evaluate option arguments (`retry`, `timeout`, `memory_mode`, etc.)
 4. Render the template (substitute `{}` with input, `{name}` with bindings)
-5. **Spawn a subagent** via the Task tool with:
+5. If the resolved agent config has `memory=...` and `memory_mode!="fresh"`:
+   - Resolve the memory directory per `spec.md` Section 3.5
+   - Acquire a single-writer lock for that memory key (or return `error(kind="locked")`)
+   - Read `digest.md` and (optionally) a bounded recent tail from `ledger.jsonl`
+   - Construct a **Memory Context** prelude (clearly delimited) and prepend it to the rendered task prompt
+   - Include a short “Memory Update Protocol” snippet describing the `vvm-memory` patch channel
+6. **Spawn a subagent** via the Task tool with:
    - Agent configuration (model, prompt, skills, permissions)
-   - Rendered task prompt
+   - Rendered task prompt (including Memory Context prelude when applicable)
    - Structured input value
-6. Wait for completion
-7. Return the result (string on success, error value on failure)
+7. Wait for completion
+8. If the subagent fails: release any held lock and return an error value (no memory writes).
+9. If the subagent succeeds:
+   - Strip any fenced ```vvm-memory``` block from the response (always strip; it is a reserved channel)
+   - If `memory_mode=="continue"` and `memory=...` is bound:
+     - Parse the block as JSON; validate size + secret-safety
+     - If valid, apply atomically:
+       - overwrite `digest.md` (write temp + rename)
+       - append a JSONL entry to `ledger.jsonl` containing `{ts, digest?, retain?}`
+     - If invalid/unsafe, apply no writes
+   - If `memory_mode=="dry_run"` or `"fresh"`, apply no writes
+   - Release any held lock
+   - Return the user-visible output string
 
 **Spawning subagents:** Use the Task tool to spawn subagents. The agent configuration maps to the task parameters.
 

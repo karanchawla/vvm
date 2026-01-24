@@ -32,6 +32,7 @@ Activate this skill when:
 | `SKILL.md`        | Quick reference, triggers | Always first                    |
 | `vvm.md`          | Execution semantics       | When running programs           |
 | `spec.md`         | Language specification    | For syntax/validation questions |
+| `memory-spec.md`  | Agent memory (portable)   | When using persistent agents    |
 | `patterns.md`     | Design patterns           | When writing programs           |
 | `antipatterns.md` | Anti-patterns             | When reviewing programs         |
 
@@ -55,6 +56,15 @@ agent researcher(
 ```vvm
 result = @researcher `Find papers on {topic}.`(topic)
 result = @researcher `Summarize.`(topic, retry=3, timeout="30s")
+```
+
+### Agent Memory
+
+```vvm
+agent assistant(model="sonnet", prompt="Helpful.", memory={ scope: "project", key: "user:alice" })
+reply = @assistant `Continue.`(request)  # default: memory_mode="continue"
+dry = @assistant `Read-only run.`(request, memory_mode="dry_run")
+fresh = @assistant `Stateless run.`(request, memory_mode="fresh")
 ```
 
 ### Semantic Predicate
@@ -227,6 +237,11 @@ for i in range(10):
 | 21  | pack-helper            | Named fan-in            |
 | 22  | full-research-pipeline | Complex workflow        |
 | 23  | ralph-wiggum-loop      | Continuous improvement  |
+| 24  | agent-memory-basic     | Memory binding + digest/ledger |
+| 25  | agent-memory-modes     | memory_mode: continue/dry_run/fresh |
+| 26  | agent-memory-multi-tenant | Per-key isolation |
+| 27  | agent-memory-parallel-safe | pmap-safe persistence |
+| 28  | agent-memory-escape-room | Demo: persistent game state |
 
 ---
 

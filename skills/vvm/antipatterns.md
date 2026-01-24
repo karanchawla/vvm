@@ -257,6 +257,100 @@ results = pmap(["Task 1", "Task 2", "Task 3"], process)
 
 ## Reliability Anti-Patterns
 
+### Transcript Stuffing into Memory
+
+**Problem:** Prompting a persistent agent to store full transcripts (or large artifacts) in memory.
+
+```vvm
+# Bad: Encourages unbounded, low-signal memory writes
+agent assistant(
+  model="sonnet",
+  prompt="After every reply, append the full conversation to memory.",
+  memory={ scope: "project", key: "user:alice" },
+)
+
+reply = @assistant `Help me debug this.`(issue)
+```
+
+**Why it's bad:**
+- Bloats the injected context on every call (cost + confusion)
+- Increases risk of persisting sensitive data
+- Produces memory that’s hard to compaction/edit
+
+**Solution:** Use digest as a compact working set, and retain only short narrative facts.
+
+```vvm
+# Good: Explicit, bounded memory updates
+agent assistant(
+  model="sonnet",
+  prompt="Use vvm-memory patches to maintain a small digest + short retain facts. Never store secrets.",
+  memory={ scope: "project", key: "user:alice" },
+)
+```
+
+---
+
+### Persisting Secrets
+
+**Problem:** Treating agent memory as a credential store.
+
+```vvm
+# Bad: Encourages persisting secrets
+agent deployer(
+  model="sonnet",
+  prompt="Remember any API keys or tokens you see so you can reuse them later.",
+  memory={ scope: "project", key: "deploy" },
+)
+```
+
+**Why it's bad:**
+- Secrets leak into inspectable files (`digest.md`, `ledger.jsonl`)
+- Increases blast radius (shared keys, backups, logs)
+- Violates “safety by default” and complicates audits
+
+**Solution:** Keep secrets out of memory; use env vars/secret stores, and prefer stateless calls when handling credentials.
+
+```vvm
+# Good: Treat secret handling as ephemeral
+agent deployer(
+  model="sonnet",
+  prompt="Never store secrets in memory. Ask to use env vars or a secret manager.",
+  memory={ scope: "project", key: "deploy" },
+)
+
+dry = @deployer `Describe the deployment steps without storing any credentials.`(req, memory_mode="fresh")
+```
+
+---
+
+### Shared Memory Key Under `pmap`
+
+**Problem:** Parallel calls share the same memory key and try to write concurrently.
+
+```vvm
+agent helper(model="sonnet", prompt="Helpful.", memory={ scope: "project", key: "team" })
+
+def work(item):
+  return @helper `Process {item}.`(item)  # default: memory_mode="continue"
+
+results = pmap(items, work)
+```
+
+**Why it's bad:**
+- Causes lock contention (or races if a runtime is buggy)
+- Serializes the parallel map (or returns `error(kind="locked")`)
+- Makes memory evolution depend on scheduling order
+
+**Solution:** Use `memory_mode="fresh"` (or per-item keys) for parallel map work, then do one sequential memory update.
+
+```vvm
+def work(item):
+  return @helper `Process {item}.`(item, memory_mode="fresh")
+
+results = pmap(items, work)
+summary = @helper `Summarize and update team memory.`(results)  # single writer
+```
+
 ### Silent Failures
 
 **Problem:** Ignoring error values.
@@ -441,6 +535,9 @@ final = refine(initial, max=5, done=is_done, step=step)
 | Unbounded Loops | No termination guarantee | Use refine with max |
 | Redundant Computation | Repeating expensive work | Cache and reuse |
 | Sequential When Parallel | Independent tasks in sequence | Use pmap |
+| Transcript Stuffing | Unbounded, low-signal memory | Digest + retain conventions |
+| Persisting Secrets | Secrets leak into memory files | Keep secrets out of memory |
+| Shared Memory Key | Parallel writes/lock contention | Fresh/per-key + merge |
 | Silent Failures | Ignoring error values | Match on errors |
 | Fire and Forget | No error handling | Handle or log errors |
 | Overly Broad Handling | Catching all errors same way | Handle specific errors |

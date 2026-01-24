@@ -1,0 +1,62 @@
+# VVM Example 27: Parallel Triage → Single Memory Commit
+# Safe pattern for pmap + persistence:
+# - Parallel phase: memory_mode="fresh" (no shared-state contention)
+# - Merge phase: one sequential call that updates memory once
+#
+# Tip: after running, inspect/edit `.vvm/memory/<key>/digest.md` to curate the runbook by hand.
+
+agent sre_chief(
+  model="sonnet",
+  prompt="""
+You are an SRE lead maintaining an on-call runbook that improves over time.
+
+Rules:
+- Be concrete and actionable.
+- Prefer checklists and runbook steps over essays.
+""",
+  memory={ scope: "project", key: "ops:runbook" },
+)
+
+incidents = [
+  {
+    id: "INC-1042",
+    service: "@payments-api",
+    symptoms: ["p95 latency spiked", "timeouts to upstream"],
+    timeline: ["12:03 deploy", "12:07 p95 spike", "12:10 rollback", "12:14 recovered"],
+    notes: "Logs show retries amplified load; circuit breaker misconfigured."
+  },
+  {
+    id: "INC-1047",
+    service: "@search",
+    symptoms: ["partial outage", "stale results"],
+    timeline: ["09:22 cache node restart", "09:25 stale results", "09:40 fixed"],
+    notes: "Cache warming job was disabled; stale TTL too high."
+  },
+  {
+    id: "INC-1051",
+    service: "@auth",
+    symptoms: ["login failures for EU region"],
+    timeline: ["18:01 cert rotation", "18:05 failures", "18:20 mitigation", "18:33 resolved"],
+    notes: "One edge cluster missed the new intermediate chain."
+  }
+]
+
+def triage(incident):
+  # Parallel phase: stateless calls avoid memory locks and ordering issues.
+  return @sre_chief `Triage this incident:
+- suspected root cause
+- immediate mitigations
+- 2 runbook improvements
+
+Do NOT emit any vvm-memory patch in this phase.`(incident, memory_mode="fresh")
+
+triage_reports = pmap(incidents, triage)
+
+# Merge phase: one sequential call that updates the runbook memory.
+runbook_update = @sre_chief `Synthesize these triage reports into:
+1) a short \"Runbook Update\" (max 15 bullets)
+2) a \"Known Failure Modes\" list (max 6)
+3) a \"Next\" list (max 5)
+`(triage_reports)
+
+export runbook_update

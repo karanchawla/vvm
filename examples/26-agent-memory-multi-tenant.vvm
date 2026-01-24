@@ -1,0 +1,52 @@
+# VVM Example 26: Multi-tenant Memory (Two Worlds, No Collision)
+# Same agent template, different memory keys.
+#
+# This is the "serial fiction" version of multi-tenant state: one showrunner agent,
+# multiple independent story bibles.
+
+agent showrunner(
+  model="sonnet",
+  prompt="""
+You are a showrunner for an ongoing fiction serial.
+
+Rules:
+- Obey the canon constraints.
+- Keep continuity consistent across episodes.
+""",
+)
+
+# World A: a cozy, magical train heist.
+world_a = {
+  title: "Midnight on the Mothline",
+  tone: "cozy caper with magical realism",
+  setting: "an enchanted overnight train that never stops at the same station twice",
+  protagonists: ["@Inez (conductor with a secret)", "@Milo (mage-for-hire with stage fright)"],
+  canon_constraints: [
+    "No on-screen gore.",
+    "Magic has a cost (small, personal).",
+    "Every episode ends with a tiny, satisfying reveal."
+  ]
+}
+
+# World B: hard sci-fi legal thriller.
+world_b = {
+  title: "Orbit Court",
+  tone: "hard sci-fi legal thriller",
+  setting: "a rotating court station adjudicating disputes between habitats",
+  protagonists: ["@Judge Kaito (strict proceduralist)", "@Rae (whistleblower engineer)"],
+  canon_constraints: [
+    "Physics stays plausible.",
+    "No deus ex machina; every twist must be foreshadowed.",
+    "Conflicts resolve via evidence and argument, not fistfights."
+  ]
+}
+
+# Seed each world and persist a story bible + open threads.
+a_seed = @showrunner.with(memory={ scope: "project", key: "show:mothline" }) `Create the story bible and Episode 1 beats for this show. Include the canon and 3 open threads.`(world_a)
+b_seed = @showrunner.with(memory={ scope: "project", key: "show:orbit-court" }) `Create the story bible and Episode 1 beats for this show. Include the canon and 3 open threads.`(world_b)
+
+# Ask for the same deliverable in both worlds; continuity should not collide.
+a_scene = @showrunner.with(memory={ scope: "project", key: "show:mothline" }) `Write a cold open for Episode 2. Keep it under 350 words and obey the canon.`(())
+b_scene = @showrunner.with(memory={ scope: "project", key: "show:orbit-court" }) `Write a cold open for Episode 2. Keep it under 350 words and obey the canon.`(())
+
+export pack(world_a=a_scene, world_b=b_scene)

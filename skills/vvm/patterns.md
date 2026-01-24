@@ -221,6 +221,34 @@ analysis = @analyzer `Analyze these key points.`(summary)
 
 ## Reliability Patterns
 
+### Persistent Agent Memory (Digest + Ledger)
+
+**Problem:** You want continuity across runs, but you don’t want to re-pass huge context or accidentally persist sensitive data.
+
+**Solution:** Bind `memory` to the agent. When memory is enabled, the runtime injects memory context and a short reminder of the `vvm-memory` patch channel, so you usually don’t need to restate the protocol in every agent prompt.
+
+```vvm
+agent coach(
+  model="sonnet",
+  prompt="""
+You are a coaching assistant.
+
+Hard rules:
+- Never store secrets, tokens, credentials, or private keys.
+ - Keep advice concise and actionable.
+""",
+  memory={ scope: "project", key: "user:alice" },
+)
+
+reply = @coach `Help me plan my week.`(request)
+audit = @coach `Answer, but don't update memory.`(request, memory_mode="dry_run")
+```
+
+**Benefits:**
+- Continuity without passing full history
+- Inspectable, editable memory on disk
+- Bounded growth (digest stays small; ledger is append-only)
+
 ### Graceful Degradation
 
 **Problem:** Single failure breaks entire workflow.
@@ -416,6 +444,7 @@ export report
 | Model Tiering | Optimizing cost/capability |
 | Early Termination | Avoiding unnecessary work |
 | Context Minimization | Large inputs |
+| Persistent Agent Memory | Cross-run continuity |
 | Graceful Degradation | Handling failures |
 | Retry with Backoff | Transient failures |
 | Constraint Validation | Quality enforcement |

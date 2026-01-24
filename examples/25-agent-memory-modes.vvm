@@ -1,0 +1,70 @@
+# VVM Example 25: Memory Modes (What-if / Dry Run / Fresh Start)
+# Demonstrates:
+# - continue: read + write memory (default when memory is bound)
+# - dry_run: read memory, but ignore any memory updates (safe simulation)
+# - fresh: stateless; ignore memory entirely
+
+agent negotiator(
+  model="sonnet",
+  prompt="""
+You are a negotiation coach for written communication.
+
+Rules:
+- Keep tone calm and professional.
+- Use clear structure: strategy, red lines, and next steps.
+""",
+  memory={ scope: "project", key: "negotiation:acme-renewal" },
+)
+
+# 1) continue: establish durable context and write it to memory.
+context = {
+  you: "@Dana",
+  counterparty: "@ACME Procurement",
+  goal: "Renew contract with a modest price increase",
+  constraints: [
+    "Do not concede on security addendum.",
+    "Keep tone calm and professional; no ultimatums.",
+    "We can offer a longer term in exchange for price protection."
+  ],
+  next_meeting: "Friday 3pm",
+  current_email_thread: "They asked for a 12% discount and threatened to shop around."
+}
+
+setup = @negotiator `memory_mode=continue.
+
+Create a negotiation one-pager for this deal (strategy + red lines + next steps).
+`(
+  context,
+  memory_mode="continue"
+)
+
+# 2) dry_run: simulate a more aggressive angle, but do NOT persist it.
+dry = @negotiator `memory_mode=dry_run.
+
+Draft an email reply that is slightly more aggressive than our usual style.
+You MAY propose memory updates, but they will not be committed.`(
+  {
+    prompt: "Reply to their discount demand in 6-10 sentences.",
+    twist: "Try a stronger anchoring tactic."
+  },
+  memory_mode="dry_run"
+)
+
+# 3) fresh: stateless, for a clean-room baseline.
+fresh = @negotiator `memory_mode=fresh.
+
+Draft an email reply with no prior context. Do not reference any stored strategy.`(
+  "They asked for a discount and threatened to shop around. Reply.",
+  memory_mode="fresh"
+)
+
+# 4) continue again: prove dry_run didn't alter our stored strategy.
+final = @negotiator `memory_mode=continue.
+
+Now draft the email reply you actually recommend, consistent with the stored strategy.
+Include a short section titled \"Assumptions from memory\" listing the top 3 facts you relied on.`(
+  { request: "Reply to their discount demand." },
+  memory_mode="continue"
+)
+
+export pack(setup=setup, dry_run=dry, fresh=fresh, final=final)

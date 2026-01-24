@@ -76,6 +76,22 @@ research = @researcher `Find papers on quantum error correction.`(())
 report = @writer `Summarize the key findings.`(research)
 ```
 
+### Agent Memory
+
+Portable, file-backed persistence for stateful agents:
+
+```vvm
+agent assistant(
+  model="sonnet",
+  prompt="Helpful assistant.",
+  memory={ scope: "project", key: "user:alice" },
+)
+
+reply = @assistant `Continue helping @Alice.`(request)
+dry = @assistant `Use memory but don't write.`(request, memory_mode="dry_run")
+fresh = @assistant `Ignore memory.`(request, memory_mode="fresh")
+```
+
 ### Semantic Predicates
 
 Conditions evaluated by the runtime's judgment, not regex:
@@ -176,11 +192,12 @@ final = refine(
 
 ## Examples
 
-The `examples/` directory has 23 programs, progressively introducing features:
+The `examples/` directory has 28 programs, progressively introducing features:
 
 - **01-08**: Basics (agents, predicates, control flow)
 - **09-15**: Intermediate (parallelism, modules, error handling)
 - **16-23**: Advanced (constraints, refinement loops, full pipelines)
+- **24-28**: Agent memory (persistent agents + concurrency rules)
 
 ---
 
@@ -199,7 +216,7 @@ This repository contains the core VVM language:
 ```
 vvm/
 ├── skills/vvm/     # Language specification (spec.md, vvm.md)
-├── examples/       # 23 tutorial programs
+├── examples/       # 28 tutorial programs
 ├── commands/       # Claude Code slash commands
 ├── .claude/        # Claude Code integration
 └── .claude-plugin/ # Plugin manifest

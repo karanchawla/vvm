@@ -230,6 +230,7 @@ Common `kind` values (non-exhaustive):
 - `rejected` (policy/permissions/host constraints)
 - `constraint_violation`
 - `cancelled`
+- `locked` (could not acquire a required lock, e.g. memory key in use)
 - `thrown`
 
 `thrown` is used for explicit `raise` and for runtime type errors in stdlib helpers. Canonical shape:
@@ -273,6 +274,7 @@ Agent config keys are host/tooling-dependent, but VVM standardizes a small porta
 - `prompt`: system/persona guidance (agent-level)
 - `skills`: skill identifiers (strings; see Section 11.2)
 - `permissions`: sandbox permissions (see `perm(...)`)
+- `memory`: agent memory binding (see Section 3.5)
 
 Terminology:
 - `agent(..., prompt="...")` is the agent’s **system/policy** prompt.
@@ -298,12 +300,13 @@ If the host tool cannot enforce a permission rule, the runtime SHOULD treat atte
 
 The runtime passes the selected skills to the host tool. The meaning of a skill is host-defined (often: tool integrations + conventions).
 
-#### 3.3.5 Validation (portable MVP)
+#### 3.3.5 Validation
 
 - Agent declarations should be configuration only: values must be literals/lists/objects (and helper constructors like `perm(...)`).
 - Agent declarations must not contain agent calls; if you need runtime-dependent configuration, derive an agent at the call site with `.with(...)` or use an inline agent literal.
 - If `skills=[...]` is present, each element should be a string skill name. Empty `skills=[]` should warn.
 - If an agent references a skill name that is not imported in the same module, the runtime should warn (best-effort).
+- If `memory=...` is present, it should be an object literal with the shape described in Section 3.5 (portable).
 
 #### Derived agents (`.with(...)`)
 
@@ -335,7 +338,7 @@ Agent calls are the boundary between “normal evaluation” and “delegate wor
 The core executable primitive is an **agent call**:
 
 ```
-@agent `task template`(input?, retry=..., timeout=..., backoff=..., name=...)
+@agent `task template`(input?, retry=..., timeout=..., backoff=..., name=..., memory_mode=...)
 ```
 
 Evaluating an agent call expression executes the call immediately (spawns a subagent) and yields a concrete value (or an error value).
@@ -345,12 +348,16 @@ Evaluating an agent call expression executes the call immediately (spawns a suba
 To evaluate `@agent `template`(...)`:
 1. Resolve the agent reference (`@name`, `@name.with(...)`, or inline `@{...}`) to an agent configuration object
 2. Determine the call input value: the first positional argument if present, otherwise the current `it`
-3. Evaluate option expressions (`retry`, `timeout`, `backoff`, `name`, plus any unknown option values)
+3. Evaluate option expressions (`retry`, `timeout`, `backoff`, `name`, `memory_mode`, plus any unknown option values)
 4. Render the template to a task prompt string (Section 5), using `{}` as the call input and `{name}` from the current environment
-5. Spawn the subagent with (agent config, task prompt string, structured input value) and wait for completion
-6. If the host reports success, return the subagent’s output as a VVM value (portable MVP: a string). If the host reports failure, return an error value (Section 3.2).
+5. If the agent has `memory=...` and `memory_mode!="fresh"`, load and inject memory context as described in Section 3.5
+6. Spawn the subagent with (agent config, task prompt string, structured input value) and wait for completion
+7. If the host reports success:
+   - extract and apply any memory patch as described in Section 3.5 (depending on `memory_mode`)
+   - return the subagent’s **user-visible output** as a VVM value (a string)
+8. If the host reports failure, return an error value (Section 3.2) and do not modify memory.
 
-#### 3.4.3 Result value (portable MVP)
+#### 3.4.3 Result value
 
 For portability (Prose-like), a successful agent call yields a **string**: the subagent’s final response text.
 
@@ -387,16 +394,22 @@ Call options are keyword arguments after the (optional) first positional input:
 - `backoff="fixed" | "exponential"`: optional retry backoff hint
 - `timeout="<duration>"`: e.g. `"30s"`, `"5m"`
 - `name="<string>"`: a stable label for logs/tracing
+- `memory_mode="continue" | "dry_run" | "fresh"`: agent memory usage (Section 3.5)
 
 Runtimes may support additional options, but should ignore unknown keys conservatively rather than reinterpret them.
 
-`retry=` semantics (portable MVP):
+`memory_mode=` semantics:
+- `continue` (default if `memory` is bound): read memory context and apply valid memory patches after success
+- `dry_run`: read memory context but do not apply any memory patch (no writes)
+- `fresh`: do not read memory and do not apply any memory patch (stateless call)
+
+`retry=` semantics:
 - `retry=n` means “try the call up to `1 + n` times”.
 - Retries occur only if the previous attempt returned an error value of kind `spawn_failed`, `timeout`, or `rejected`.
 - Each retry reuses the same agent configuration, rendered prompt, and input value.
 - The final result is the first non-error value, or the last error value if all attempts fail.
 
-`timeout=` semantics (portable MVP):
+`timeout=` semantics:
 - If an attempt exceeds `timeout`, it returns an error value of kind `timeout` (and may be retried if `retry` is set).
 
 Examples:
@@ -450,6 +463,143 @@ When the VM needs to serialize a value to text (for fallback input encoding or f
 - Objects serialize as JSON objects with string keys.
 - Object keys should be serialized in a stable order (lexicographic by key) to reduce nondeterminism across runtimes.
 - Error values serialize like any other object.
+
+---
+
+## 3.5 Agent Memory
+
+VVM provides **portable, file-backed agent memory** that works even when the host tool has no native “persistent subagents”.
+
+Design goals:
+- explicit when memory is used vs ignored
+- inspectable/editable outside the runtime
+- bounded context injection (no “load everything forever”)
+- safety by default (avoid persisting secrets)
+- clear concurrency rules (safe under explicit parallelism like `pmap`)
+
+### 3.5.1 Agent key: `memory=...` (portable)
+
+Agents MAY include a `memory` binding:
+
+```vvm
+agent helper(
+  model="sonnet",
+  prompt="Helpful, practical.",
+  memory={ scope: "project", key: "user:alice" },
+)
+```
+
+`memory` is an object with keys:
+- `scope`: `"project" | "user" | "path"`
+- `key`: string (memory identity; must not collide unintentionally)
+- `path`: required iff `scope=="path"` (string path to a memory directory root)
+
+Notes:
+- The agent’s name is not the memory identity; `(scope, key)` is.
+- Use separate keys to isolate users/threads/tenants (e.g., `user:alice/ticket:INC-1234`).
+
+### 3.5.2 Call option: `memory_mode=...` (portable)
+
+Agent calls MAY set:
+- `memory_mode="continue"` (default if `memory` is bound): read memory and apply valid memory patches after success
+- `memory_mode="dry_run"`: read memory but do not apply any memory patch (no writes)
+- `memory_mode="fresh"`: do not read memory and do not apply any memory patch (stateless)
+
+If no `memory` binding exists, `memory_mode` has no effect.
+
+### 3.5.3 Filesystem layout (portable minimum)
+
+Given `memory={scope:S, key:K, path:P?}`, the runtime resolves a memory directory `D`:
+- `S=="project"` → `D = <project>/.vvm/memory/<escape(K)>`
+- `S=="user"`    → `D = ~/.vvm/memory/<escape(K)>`
+- `S=="path"`    → `D = P/<escape(K)>` (or `D=P` if `P` is already key-specific; host-defined)
+
+`<project>` is the directory containing the program’s entry module (the file executed by the host). If the host has no entry file (e.g. pasted program), it SHOULD treat the current working directory as `<project>`; if no such directory exists, it SHOULD return an error value of kind `rejected` for `scope="project"`.
+
+`escape(K)` MUST be reversible and safe for filesystem paths. Runtimes SHOULD document the exact encoding and SHOULD encourage human-friendly keys (e.g., ASCII).
+
+Portable minimum files under `D`:
+- `digest.md` (UTF-8 text; may be empty)
+- `ledger.jsonl` (append-only JSON Lines; may be empty)
+- `meta.json` (optional; schema version, timestamps)
+- `lock` (optional; for single-writer locking)
+
+Runtimes MAY add derived views (e.g., `journal/YYYY-MM-DD.md`) as long as `digest.md` + `ledger.jsonl` remain the canonical durable memory.
+
+### 3.5.4 Loading memory into an agent call (portable)
+
+If `memory_mode` is `continue` or `dry_run`, the runtime MUST:
+1. load `digest.md` (or treat as empty)
+2. optionally select a **token-budgeted** recent tail of retained facts from `ledger.jsonl`
+3. inject a **memory context** into the call prompt (usually by prepending a clearly delimited section)
+
+The retrieval strategy beyond “recent tail” is intentionally unspecified in MVP.
+
+To avoid authors re-stating the memory patch protocol in every agent prompt, the injected memory context MUST include a short “Memory Update Protocol” instruction snippet describing how to emit a `vvm-memory` block (Section 3.5.5) and noting that patches are ignored when `memory_mode="dry_run"`.
+
+### 3.5.5 Memory patch channel (portable)
+
+Agents update memory via a reserved fenced block in their output:
+
+````text
+...user-visible response...
+
+```vvm-memory
+{ "digest": "...", "retain": ["W @X: ...", "N @X: ..."] }
+```
+````
+
+Patch parsing rules:
+- If a `vvm-memory` block is present, the runtime MUST remove it from the returned string value of the agent call.
+- The block contents MUST be parsed as a JSON object. If parsing fails, the runtime SHOULD ignore the patch (no writes).
+
+Patch schema:
+- `digest` (string, optional): full replacement contents for `digest.md`
+- `retain` (list of strings, optional): narrative facts to append to the ledger for later recall
+
+Applying patches:
+- In `memory_mode="continue"`: if the patch is valid and passes safety checks, the runtime MUST:
+  - update `digest.md` atomically (write temp + rename)
+  - append a JSONL ledger entry capturing at least `{ ts, digest?, retain? }`
+- In `memory_mode="dry_run"` or `"fresh"`: the runtime MUST NOT write to `digest.md` or `ledger.jsonl` (it still strips the patch block from output).
+
+### 3.5.6 What goes in `digest.md` vs `retain` (guidance)
+
+`digest.md` should contain the **working set**: things you want injected on every stateful call because they have high expected value:
+- stable facts and preferences
+- constraints/invariants
+- a small “what’s next” list (open loops)
+
+`retain` items should be **findable later**, but not always loaded:
+- narrative, self-contained facts about what happened or what was learned
+- longer-tail details that support recall, debugging, and future compaction
+
+Recommended conventions for `retain` lines (optional, for interoperability):
+- `W …` world facts
+- `B …` what happened / what we did
+- `O(c=0.0..1.0) …` opinions/preferences with confidence
+- `N …` what’s next / follow-up (keep current ones in the digest)
+- `@Entity` mentions to make recall entity-centric
+
+### 3.5.7 Safety by default (portable)
+
+To reduce accidental secret persistence:
+- The runtime MUST NOT persist raw call inputs or raw agent outputs as part of this memory system.
+- The only durable writes are `digest.md` updates and `ledger.jsonl` entries derived from the `vvm-memory` patch.
+- Runtimes SHOULD reject patches that appear to contain secrets (API keys, tokens, private keys) and apply no writes in that case.
+
+### 3.5.8 Concurrency rules (portable)
+
+For a given memory directory `D`, the runtime MUST prevent concurrent writes that can corrupt state.
+
+Minimum requirement:
+- `memory_mode="continue"` MUST acquire an exclusive lock for `D` across the whole operation (load → run agent → validate patch → apply patch).
+
+If the lock cannot be acquired within an implementation-defined timeout, the runtime SHOULD return an error value (e.g., `error(kind="locked")`) rather than proceeding unsafely.
+
+Guidance under `pmap`:
+- avoid sharing the same `memory.key` across parallel calls unless you intentionally want serialization
+- prefer `memory_mode="fresh"` for parallel map work, then do a single sequential memory update
 
 ---
 
@@ -566,7 +716,7 @@ The VM MUST parse templates left-to-right:
 
 Any other unescaped `{` or `}` is a validation error.
 
-#### Placeholder validation (portable MVP)
+#### Placeholder validation
 
 To catch typos early (Prose-like), runtimes MUST validate every `{name}` placeholder:
 - `name` MUST be a valid identifier and MUST NOT be a reserved keyword.
@@ -656,7 +806,7 @@ match result:
 
 Non-chosen cases MUST NOT be executed.
 
-### 7.2 Patterns (portable MVP)
+### 7.2 Patterns
 
 Supported pattern forms:
 - `_` wildcard
@@ -836,7 +986,7 @@ Purity rule (portable):
 
 Functions are reusable subgraphs and can call agents.
 
-Semantics (portable MVP):
+Semantics:
 - Arguments are evaluated at call time and passed by value.
 - A function body executes sequentially like top-level code.
 - `return expr` returns the value of `expr`.
@@ -846,7 +996,7 @@ Semantics (portable MVP):
 - Functions are first-class values: referencing a function name yields a callable that can be passed to stdlib helpers like `map`/`pmap`.
 - Top-level `def` declarations are hoisted at module load time (so functions may be called before their textual definition).
 
-Function call argument binding (portable MVP):
+Function call argument binding:
 - Positional arguments bind left-to-right to parameters.
 - Keyword arguments bind by parameter name.
 - The VM raises a `thrown` error if:
@@ -874,12 +1024,12 @@ import "summarizer" from "npm:@example/summarizer"
 import "file-writer" from "./local-skills/file-writer"
 ```
 
-Supported source forms (portable MVP):
+Supported source forms:
 - GitHub: `github:user/repo`
 - NPM: `npm:package`
 - Local path: `./path` or `../path`
 
-Semantics (portable MVP):
+Semantics:
 - Skill imports are **module-scope only** and processed before agent calls execute.
 - `import "<skill-name>" from "<source>"` registers `<skill-name>` in the module’s imported-skill set.
 - Duplicate imports of the same `<skill-name>` within a module are a validation error.
@@ -898,7 +1048,7 @@ from "./lib/research.vvm" import @researcher as researcher_agent
 
 Module imports are processed before execution.
 
-Semantics (portable MVP):
+Semantics:
 - If the import string starts with `./` or `../`, it is resolved relative to the directory of the importing module file (not the process CWD).
 - Otherwise, the import string is interpreted as a host-defined module identifier (future: registries); MVP runtimes may restrict this to local file paths only.
 - After resolution, the runtime computes a canonical module identity (lexically normalize `.`/`..` segments). Importing the same canonical module multiple times refers to the same module.
@@ -1002,7 +1152,7 @@ Syntax:
 - `raise`
 - `raise "message"`
 
-Semantics (portable MVP):
+Semantics:
 - `raise "message"` constructs an error value `{ error: { kind: "thrown", message: <message> } }` and raises it as control flow.
 - `raise` (no message):
   - inside an `except as err:` block: re-raises the currently caught error value (the value bound to `err`)
@@ -1023,7 +1173,7 @@ finally:
   ...
 ```
 
-Semantics (portable MVP):
+Semantics:
 - `except` and `finally` are each optional, but at least one MUST be present.
 - The `try` block executes.
 - If a raised error occurs inside the `try` block:
@@ -1213,7 +1363,7 @@ This section defines what it means for a runtime to “compile” and “run” 
    - If the program is run as a script, the runtime should return exported **values**.
    - Exported agents are configuration objects and are not run targets.
 
-### 15.2 Diagnostics (portable MVP)
+### 15.2 Diagnostics
 
 VVM runtimes report:
 - **Errors**: block execution (do not run the program)

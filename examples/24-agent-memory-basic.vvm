@@ -1,0 +1,71 @@
+# VVM Example 24: Ship's Log (Persistent Agent Memory)
+# A "mission control" agent that persists a compact shift handoff across runs.
+#
+# Memory lives on disk:
+# - .vvm/memory/<key>/digest.md   (compact working set injected each call)
+# - .vvm/memory/<key>/ledger.jsonl (append-only retained facts / audit trail)
+#
+# Run this example twice to feel the continuity: the second run should pick up
+# where the last shift left off without re-passing the entire history.
+#
+# Tip: edit the digest.md between runs to simulate a human-written shift note.
+
+agent mission_control(
+  model="sonnet",
+  prompt="""
+You are Mission Control for a small autonomous rover mission.
+
+Rules:
+- Be operational: concise, concrete, and conservative.
+- Prefer headings + bullet lists over long prose.
+""",
+  memory={ scope: "project", key: "mission:icebreaker" },
+)
+
+# Shift 1: give the agent a mission brief and ask it to write a handoff + update memory.
+briefing = {
+  mission: "@ICEBREAKER",
+  vehicle: "@AURORA rover",
+  environment: "arctic analog site",
+  constraints: [
+    "Battery is the limiting factor; prefer low-power plans.",
+    "No risky maneuvers without explicit justification.",
+    "We treat all telemetry as untrusted until cross-checked."
+  ],
+  current_state: {
+    battery_pct: 42,
+    comms: "intermittent (winds)",
+    last_known_pose: "Grid N3-E7",
+    last_action: "short traverse + soil sample attempt",
+    open_questions: [
+      "Is the soil sampler jammed or just miscalibrated?",
+      "Is comms intermittent due to antenna orientation or weather?"
+    ]
+  },
+  anomalies: [
+    { id: "A-17", summary: "wheel slip higher than expected on compact snow", severity: "medium" },
+    { id: "C-04", summary: "packet loss spikes during gusts", severity: "low" }
+  ]
+}
+
+handoff = @mission_control `You're taking over the console.
+
+Write a shift handoff note for the next operator:
+- what we know (stable facts)
+- what we tried (key events)
+- what we believe (opinions with confidence)
+- what we will do next (3-5 concrete next actions)
+`(briefing)
+
+# Shift 2: start "cold" and ask for next actions; it should rely on memory.
+next_actions = @mission_control `New shift. Based on your memory, propose the next 60 minutes:
+- 3 priority actions
+- 2 risks to watch
+- 1 "if comms drop" contingency plan`(
+  {
+    operator: "@NightShift",
+    constraint: "Keep it conservative: prefer diagnostic steps over risky movement."
+  }
+)
+
+export next_actions

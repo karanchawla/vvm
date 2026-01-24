@@ -54,6 +54,16 @@ Validate without running:
 | 22 | [full-pipeline](22-full-research-pipeline.vvm) | PR review pipeline | Multi-agent workflow | Prompt Chaining |
 | 23 | [ralph-wiggum-loop](23-ralph-wiggum-loop.vvm) | Ship the feature | Continuous improvement | Autonomous Agent |
 
+### Agent Memory (24-28)
+
+| # | Example | Scenario | Concepts |
+|---|---------|----------|----------|
+| 24 | [agent-memory-basic](24-agent-memory-basic.vvm) | Mission control shift handoff | `memory`, digest+ledger, `vvm-memory` patch, W/B/O/N |
+| 25 | [agent-memory-modes](25-agent-memory-modes.vvm) | Negotiation what-if simulation | `memory_mode`: continue/dry_run/fresh |
+| 26 | [agent-memory-multi-tenant](26-agent-memory-multi-tenant.vvm) | Two story bibles, no collision | per-key isolation, `.with(memory=...)` |
+| 27 | [agent-memory-parallel-safe](27-agent-memory-parallel-safe.vvm) | Parallel incident triage → runbook update | `pmap` + `memory_mode="fresh"` + merge |
+| 28 | [agent-memory-escape-room](28-agent-memory-escape-room.vvm) | Escape room that remembers state | persistent game state, inspectable digest |
+
 ## Agent Patterns
 
 These examples demonstrate the agent patterns from [Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents):
@@ -76,6 +86,10 @@ agent name(model="sonnet", prompt="...")
 
 # Agent call
 result = @agent `template with {variable}`(input)
+
+# Agent memory
+agent name(model="sonnet", prompt="...", memory={ scope: "project", key: "user:alice" })
+result = @agent `Answer without writing memory.`(input, memory_mode="dry_run")
 
 # Semantic predicate
 if ?`criteria`(value):
