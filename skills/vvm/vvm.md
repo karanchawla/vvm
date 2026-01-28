@@ -543,6 +543,152 @@ excerpts = @reader `Extract the 3 most relevant quotes.`(research)
 
 The materializer pattern makes costs explicit: reading a file is a visible agent call, not hidden IO.
 
+### 4.6 Debugging with Run Artifacts
+
+When a workflow fails or produces unexpected results, inspect the run artifacts.
+
+#### Finding Your Run
+
+Run directories are at `.vvm/runs/<run-id>/`. The most recent run has the latest timestamp:
+
+```bash
+ls -lt .vvm/runs/ | head -5
+```
+
+#### Reading state.md
+
+Open `.vvm/runs/<run-id>/state.md` to see:
+- **Status**: Did the run complete, fail, or get interrupted?
+- **Binding Index**: Which variables were bound to which files?
+- **Execution Trace**: What happened in what order?
+
+Example state.md:
+
+```markdown
+# VVM Run: 20260127-143052-a7f3b2
+
+Status: completed
+
+## Binding Index
+
+| Name | Ref Path | Summary |
+|------|----------|---------|
+| research | .../bindings/b000001.md | Found 3 papers |
+| report | .../bindings/b000002.md | 2500-word report |
+
+## Execution Trace
+
+- [14:30:52] Started
+- [14:30:55] research = @researcher (b000001)
+- [14:31:02] report = @writer (b000002)
+- [14:31:05] Completed
+```
+
+#### Inspecting Binding Files
+
+Each agent output is in `.vvm/runs/<run-id>/bindings/b<counter>.md`. Open these to see the full output:
+
+```bash
+cat .vvm/runs/20260127-143052-a7f3b2/bindings/b000001.md
+```
+
+#### Common Issues
+
+| Symptom | Check |
+|---------|-------|
+| Missing binding file | Subagent may have failed to write; check for error in trace |
+| state.md very large | May have accidentally logged full outputs; check safety defaults |
+| Unexpected output | Read the binding file to see what the agent actually produced |
+
+#### Sharing Runs for Debugging
+
+To share a run for debugging:
+1. Copy the entire `.vvm/runs/<run-id>/` directory
+2. Include `program.vvm`, `state.md`, and `bindings/`
+3. Do NOT share if bindings contain sensitive data
+
+### 4.7 Choosing a State Mode
+
+VVM supports two state modes. Choose based on your workflow characteristics.
+
+#### In-Context Mode (Default)
+
+All state stays in token context. Agent calls return strings.
+
+**Use when:**
+- Quick prototyping and iteration
+- Small programs (< 10 agent calls)
+- Outputs are small (< 1KB each)
+- You don't need to inspect intermediate outputs
+- Tools/file access unavailable
+
+**Characteristics:**
+- No filesystem artifacts created
+- All outputs visible in conversation
+- Context grows with each agent call
+- May hit token limits on long workflows
+
+#### Filesystem Mode
+
+Agent outputs written to `.vvm/runs/<run-id>/bindings/`. Agent calls return ref values.
+
+**Use when:**
+- Production workflows
+- Long pipelines (10+ agent calls)
+- Large intermediate outputs
+- You want to inspect/debug artifacts
+- Reproducibility matters
+
+**Characteristics:**
+- Creates run directory with artifacts
+- Context stays bounded (refs are small)
+- Can inspect any intermediate output
+- Supports very long workflows
+
+#### Switching Modes
+
+```bash
+# Default: in-context mode
+/vvm-run examples/my-program.vvm
+
+# Explicit filesystem mode
+/vvm-run examples/my-program.vvm --state=filesystem
+```
+
+#### Decision Table
+
+| Factor | In-Context | Filesystem |
+|--------|------------|------------|
+| Agent calls | < 10 | 10+ |
+| Output sizes | Small | Any size |
+| Debugging | Limited | Full artifacts |
+| Token usage | Grows | Bounded |
+| File access | Not needed | Required |
+
+### 4.8 Scope and Limitations
+
+Filesystem state mode provides artifact-backed agent outputs. The following are explicitly out of scope:
+
+#### Database Backends
+
+State is stored in the local filesystem only. Database backends (SQLite, PostgreSQL) are not supported. For distributed or persistent state, copy run directories manually.
+
+#### Binary and Large Attachments
+
+Binding files are markdown text. Binary files (images, PDFs) and very large outputs (> 10MB) should be handled by the agent writing to a separate location and including a path reference.
+
+#### Durable Resume
+
+Runs cannot be resumed after interruption. If a run fails partway through, you must re-run from the beginning. The `state.md` trace helps identify where failure occurred.
+
+#### Ref URI Scheme
+
+Refs use filesystem paths (`.vvm/runs/<id>/bindings/b000001.md`). There is no URI scheme (`vvm://...`) for cross-machine or network references.
+
+#### Transcript Logging
+
+Full prompts and responses are not logged by default. This is intentional for safety. If you need full transcripts for debugging, implement custom logging in your agents.
+
 ---
 
 ## 5. Narration Protocol

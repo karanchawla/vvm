@@ -1,0 +1,40 @@
+# VVM Example 30: Materializer Pattern (Filesystem State Mode)
+# Demonstrates explicit file reading when you need content in context.
+# Use this pattern sparingly - most agents can read refs directly.
+
+agent researcher(
+  model="sonnet",
+  prompt="Research topics with detailed analysis."
+)
+
+agent reader(
+  model="haiku",
+  permissions=perm(read=[".vvm/runs/**"], write=[], bash="deny", network="deny"),
+  prompt="Extract and summarize key information from files."
+)
+
+agent analyst(
+  model="sonnet",
+  prompt="Perform detailed analysis on provided content."
+)
+
+# Research phase - returns ref
+topic = "machine learning optimization techniques"
+research = @researcher `Research {topic} with focus on:
+- Gradient descent variants
+- Learning rate schedules
+- Regularization methods`(topic)
+
+# Materializer pattern - explicitly read file contents
+# Use when you need specific excerpts in the VM's context
+key_excerpts = @reader `Read the research and extract:
+1. The top 3 most important techniques
+2. One concrete example for each
+Keep excerpts brief (2-3 sentences each).`(research)
+
+# Now key_excerpts is also a ref, but the reader has done the extraction
+# The analyst gets focused content, not the full research dump
+analysis = @analyst `Analyze these optimization techniques.
+Compare their trade-offs and recommend when to use each.`(key_excerpts)
+
+export analysis
