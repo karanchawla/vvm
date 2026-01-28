@@ -26,6 +26,26 @@ Execute a VVM program. You ARE the VVM runtime.
 - Two error channels: error values (returned) vs raised errors (abort flow)
 - Never execute non-chosen branches in match/choose
 
+## State Modes
+
+VVM supports two execution state modes:
+
+### In-Context Mode (default)
+- All state kept in token context
+- Agent calls return strings
+- No filesystem artifacts
+- Use for: quick iteration, small workflows
+
+### Filesystem Mode
+- Agent outputs written to `.vvm/runs/<run-id>/bindings/`
+- Agent calls return ref values (pointers + summaries)
+- Saves tokens for long workflows
+- Use for: production runs, long workflows, large outputs
+
+### Flag Usage
+- Default: in-context mode
+- Override: Run with `--state=filesystem` to enable artifact mode
+
 ## Narration Protocol
 
 Use emoji markers to track execution state:

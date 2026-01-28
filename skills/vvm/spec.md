@@ -252,6 +252,27 @@ match resp:
     pass
 ```
 
+### 3.2.5 Ref Values (artifact-backed outputs)
+
+A value is a **ref value** iff it is an object with a top-level `ref` field whose value is a string.
+
+Recommended portable shape:
+
+```vvm
+{
+  ref: ".vvm/runs/<run-id>/bindings/b000123.md",
+  summary: "1–3 sentence summary (bounded)",
+  mime: "text/markdown",
+  bytes: 12345
+}
+```
+
+Notes:
+- Only `ref` is required; other keys are optional.
+- This is parallel to how error values are recognized by shape (Section 3.2).
+- Ref values are returned by agent calls in **filesystem state mode** (Section 3.4.2A).
+- The `summary` field MUST be bounded (1–3 sentences) to prevent token bloat.
+
 ### 3.3 Agents
 
 Agents are named configuration templates. They live in an **agent namespace**, referenced with `@name` in calls.
@@ -354,16 +375,58 @@ To evaluate `@agent `template`(...)`:
 6. Spawn the subagent with (agent config, task prompt string, structured input value) and wait for completion
 7. If the host reports success:
    - extract and apply any memory patch as described in Section 3.5 (depending on `memory_mode`)
-   - return the subagent’s **user-visible output** as a VVM value (a string)
+   - return the subagent's **user-visible output** as a VVM value (a string)
 8. If the host reports failure, return an error value (Section 3.2) and do not modify memory.
+
+#### 3.4.2A State Mode and Output Type
+
+The runtime operates in one of two **state modes**:
+
+| Mode | Agent call returns | State storage |
+|------|-------------------|---------------|
+| **in-context** (default) | string | Token context only |
+| **filesystem** | ref value | `.vvm/runs/<run-id>/` |
+
+In **in-context mode** (today's default), agent calls return a **string** (the subagent's final response text).
+
+In **filesystem state mode**, agent calls return a **ref value** (Section 3.2.5). The VM instructs subagents to write full output to a binding file and return only a confirmation + bounded summary.
+
+Mode selection:
+- Default: in-context (backward compatible)
+- Override: `--state=filesystem` flag
 
 #### 3.4.3 Result value
 
-For portability (Prose-like), a successful agent call yields a **string**: the subagent’s final response text.
+For portability (Prose-like), a successful agent call yields a **string**: the subagent's final response text.
 
 Notes:
 - Hosts/tools may provide richer result objects; runtimes SHOULD extract the human-visible final output text.
 - VVM 0.0.1 does not automatically parse JSON or VVM literals out of that text. If you want structured outputs, ask the agent to return a structured format and treat it as text (future versions may add parsing helpers).
+
+#### 3.4.3A Template Interpolation of Ref Values
+
+When interpolating a ref value into a template (e.g., `{}` or `{name}`), the VM MUST use a **small, safe preview**, not the full artifact content.
+
+Required interpolation format:
+
+```text
+[ref: .vvm/runs/<run-id>/bindings/b000123.md]
+summary: <summary text>
+```
+
+This ensures:
+- The VM's own context stays bounded even when passing large intermediates.
+- Downstream agents see a pointer they can read if needed.
+
+Example:
+
+```vvm
+research = @researcher `Research {topic}.`(topic)   # returns ref value
+report = @writer `Write a report about {research}.`(research)
+# The {research} interpolation produces:
+#   [ref: .vvm/runs/.../bindings/b000001.md]
+#   summary: Found 3 papers on quantum computing...
+```
 
 #### Required delimiter
 
@@ -385,7 +448,29 @@ Examples:
 
 You can always override the implicit input by passing an explicit first argument.
 
-Note: `@agent `...`()`` means “use `it`”, not “empty input”. Use `@agent `...`(())` to explicitly pass empty input.
+Note: `@agent `...`()`` means "use `it`", not "empty input". Use `@agent `...`(())` to explicitly pass empty input.
+
+#### Structured Input Passing with Ref Values
+
+When passing structured input to a subagent that contains ref values, the VM MUST:
+
+1. **Pass the ref object itself** (not expanded file contents).
+2. **Include a "Ref Reading Protocol" instruction** telling the subagent how to access full content if needed.
+
+Ref Reading Protocol snippet (included in subagent context):
+
+```text
+## Ref Reading Protocol
+Some inputs are ref values (objects with a `ref` field pointing to a file path).
+- The `summary` field provides a bounded preview.
+- If you need full content, read the file at the `ref` path (requires read permission).
+- Cite by path when referencing specific content.
+```
+
+This ensures:
+- Subagents receive pointers, not megatext.
+- Subagents can access full content when genuinely needed.
+- Token usage scales with actual need, not worst-case output size.
 
 #### Call options (portable subset)
 
