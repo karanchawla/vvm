@@ -16,7 +16,7 @@ see-also:
 *A language for agentic programs where the LLM is the runtime.*
 
 Status: draft
-Version: 0.0.1
+Version: 0.0.4
 
 ---
 
