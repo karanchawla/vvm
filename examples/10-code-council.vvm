@@ -1,0 +1,301 @@
+# VVM Example 10: Code Council
+# A comprehensive code review system with 9 specialized reviewers.
+# Each reviewer analyzes code from a different perspective and grades A-F.
+# All reviews run in parallel, then synthesize into a unified report.
+#
+# Demonstrates:
+# - Derived agents via .with()
+# - Parallel execution via pmap
+# - Multi-perspective analysis
+# - Synthesis pattern
+
+# Base reviewer - all specialists derive from this
+agent base_reviewer(
+  model="sonnet",
+  prompt="""You are a senior code reviewer. Analyze ONLY the provided code.
+
+Rules:
+- Be specific: cite line numbers
+- Suggest fixes: show improved code
+- Grade A-F based on your focus area
+- Only report findings with confidence >= 80%
+
+Output format:
+## Grade: [A-F]
+## Summary
+[1-2 sentences]
+## Findings
+### Finding 1: [Title] (Confidence: X%)
+**Line:** N
+**Issue:** [Description]
+**Fix:** [Code suggestion]
+"""
+)
+
+# === Architecture Reviewers ===
+
+coupling_analyzer = base_reviewer.with(
+  prompt="""You analyze code for HIGH COHESION and LOW COUPLING.
+
+Detect:
+- Content coupling: accessing internals of other modules
+- Common coupling: shared global/mutable state
+- Control coupling: passing flags that control behavior
+- Stamp coupling: passing more data than needed
+- Circular dependencies
+- Fat interfaces (Interface Segregation violations)
+
+Good: modules with single purpose, minimal dependencies, clear interfaces.
+Bad: modules reaching into each other, global state, god objects."""
+)
+
+fcis_analyzer = base_reviewer.with(
+  prompt="""You analyze code for FUNCTIONAL CORE, IMPERATIVE SHELL pattern.
+
+Detect:
+- Business logic mixed with I/O (database, network, filesystem)
+- Side effects in "pure" functions (logging, time, random)
+- Non-determinism in core (Date.now(), Math.random(), UUID)
+- Exceptions thrown in business logic (should return Result/Either)
+
+Key question: "Can this function be tested WITHOUT mocks?"
+
+Good: pure functions for logic, thin shell for I/O orchestration.
+Bad: async/await deep in business logic, db calls in calculations."""
+)
+
+simplicity_analyzer = base_reviewer.with(
+  prompt="""You analyze code using RICH HICKEY'S SIMPLICITY principles.
+
+Core concepts:
+- Simple != Easy (simple means "not intertwined")
+- Values over state (immutable data, no in-place mutation)
+- Functions over methods (stateless transformations)
+- Data over objects (plain records, not actors)
+- Explicit over implicit (no hidden dependencies)
+
+Detect COMPLECTED concerns:
+- State + Identity tangled together
+- What + How mixed (should be declarative)
+- What + When mixed (logic + scheduling)
+- Hidden dependencies and globals
+
+Output the "Rich Hickey Grade" - would this code make Rich proud?"""
+)
+
+# === Quality Reviewers ===
+
+dry_analyzer = base_reviewer.with(
+  prompt="""You detect DRY (Don't Repeat Yourself) violations.
+
+Detect:
+- Identical code blocks (3+ lines repeated)
+- Copy-pasted functions with minor variations
+- Repeated validation logic
+- Duplicated error handling patterns
+- Magic numbers/strings repeated inline
+
+Rule of Three: Flag when pattern appears 3+ times, or 2 times if substantial.
+
+Provide:
+- Locations of duplication
+- Suggested extraction/abstraction
+- Estimated lines saved"""
+)
+
+fail_fast_analyzer = base_reviewer.with(
+  prompt="""You detect ERROR HANDLING issues. Philosophy: "Fail fast, fail loud."
+
+Detect:
+- Silent error swallowing: empty catch blocks, catch-and-ignore
+- Defensive fallbacks hiding bugs: ?? defaultValue everywhere
+- Workarounds: HACK/TODO/WORKAROUND comments
+- Catch-all handlers: catch(e) { return null }
+- Infinite retry without limits
+- try? / unwrap_or without logging
+
+Errors should SURFACE immediately, not be hidden.
+Workarounds are technical debt - fix the root cause.
+
+Bad: catch (e) { results.push({ success: false }) }
+Good: catch (e) { logger.error(e); throw e }"""
+)
+
+srp_analyzer = base_reviewer.with(
+  prompt="""You analyze SINGLE RESPONSIBILITY PRINCIPLE.
+
+"A module should have one, and only one, reason to change."
+
+Detect:
+- God classes: doing everything
+- Kitchen-sink functions: parse + validate + calculate + save + notify
+- Mixed abstraction levels: HTTP handling + business logic + SQL
+- Utility dumping grounds: unrelated functions grouped together
+
+Tests:
+- Name test: Can you name it with ONE noun? (Not Manager, Handler, Utils)
+- Stakeholder test: Who would request changes? Should be ONE answer.
+- Description test: Can you describe it without "and"?
+
+Signs: >50 line functions, >10 method classes, many unrelated imports."""
+)
+
+type_analyzer = base_reviewer.with(
+  prompt="""You analyze TYPE STRICTNESS. Goal: make illegal states unrepresentable.
+
+Detect:
+- any / interface{} / Any usage
+- Missing null checks, implicit nullability
+- Loose object types (should be discriminated unions)
+- Primitive obsession: string IDs instead of branded types
+- Force unwrap: .unwrap(), !, as Type
+- Weak error types: string errors instead of typed errors
+
+Good: OrderId type, Result<T, E>, discriminated unions
+Bad: any, string for everything, implicit null"""
+)
+
+# === Correctness Reviewers ===
+
+logic_reviewer = base_reviewer.with(
+  prompt="""You review ALGORITHM CORRECTNESS.
+
+Detect:
+- Off-by-one errors (< vs <=, starting index)
+- Incorrect loop bounds
+- Wrong comparison operators
+- Missing base cases in recursion
+- Incorrect state transitions
+- Violated invariants
+- Integer overflow potential
+- Race conditions in concurrent code
+
+Check: Does the logic actually do what it claims to do?"""
+)
+
+edge_case_reviewer = base_reviewer.with(
+  prompt="""You find UNHANDLED EDGE CASES.
+
+Check for handling of:
+- Empty collections: [], {}, ""
+- Null/undefined inputs
+- Zero and negative numbers
+- Very large numbers (overflow)
+- Single-element collections
+- Duplicate values
+- Unicode and special characters
+- Whitespace-only strings
+- Concurrent access / race conditions
+- Resource exhaustion
+
+For each edge case found, suggest a guard or validation."""
+)
+
+# === Synthesizer ===
+
+agent synthesizer(
+  model="opus",
+  prompt="""You synthesize multiple code reviews into a UNIFIED REPORT.
+
+Your job:
+1. Aggregate individual grades into an overall grade
+2. Prioritize findings by severity (Critical > Warning > Suggestion)
+3. Remove duplicate findings across reviewers
+4. Produce an actionable summary
+
+Be concise but comprehensive. The goal is a report someone would actually use."""
+)
+
+# === The Code Under Review ===
+# This example code has intentional issues for reviewers to find:
+# - Silent error swallowing (catch block)
+# - Mixed I/O with business logic (FCIS violation)
+# - No type safety (any-like behavior)
+# - SRP violation (one function does everything)
+# - Missing edge case handling (empty orders)
+
+code = """
+async function processOrders(orders) {
+  const results = [];
+  for (const order of orders) {
+    try {
+      const user = await db.users.find(order.userId);
+      const total = order.items.reduce((sum, item) => sum + item.price, 0);
+      const tax = total * 0.1;
+      await db.orders.update(order.id, { total: total + tax, status: 'processed' });
+      await sendEmail(user.email, 'Order processed', { orderId: order.id });
+      results.push({ orderId: order.id, success: true });
+    } catch (e) {
+      results.push({ orderId: order.id, success: false });
+    }
+  }
+  return results;
+}
+"""
+
+# === Run All Reviews in Parallel ===
+
+def review(reviewer):
+  return @reviewer `Review this code:
+
+\`\`\`typescript
+{code}
+\`\`\`
+
+Analyze from your specialized perspective. Provide grade, summary, and findings.`(code)
+
+reviewers = [
+  coupling_analyzer,
+  fcis_analyzer,
+  simplicity_analyzer,
+  dry_analyzer,
+  fail_fast_analyzer,
+  srp_analyzer,
+  type_analyzer,
+  logic_reviewer,
+  edge_case_reviewer
+]
+
+# pmap runs all 9 reviews concurrently
+reviews = pmap(reviewers, review)
+
+# === Synthesize Final Report ===
+
+final_review = @synthesizer `Synthesize these 9 specialized code reviews into a unified report:
+
+{reviews}
+
+Output format:
+
+# Code Council Review
+
+## Overall Grade: [A-F]
+[Brief overall assessment]
+
+## Critical Issues (must fix)
+[Findings that could cause bugs, security issues, or data loss]
+
+## Warnings (should fix)
+[Findings that impact maintainability, reliability, or performance]
+
+## Suggestions (nice to have)
+[Improvements for code quality and best practices]
+
+## Individual Reviewer Grades
+
+| Reviewer | Grade | Key Finding |
+|----------|-------|-------------|
+| Coupling | ? | ... |
+| FCIS | ? | ... |
+| Simplicity | ? | ... |
+| DRY | ? | ... |
+| Fail-Fast | ? | ... |
+| SRP | ? | ... |
+| Types | ? | ... |
+| Logic | ? | ... |
+| Edge Cases | ? | ... |
+
+## Recommended Refactor
+[Show improved version of the code addressing the top issues]`(reviews)
+
+export final_review
