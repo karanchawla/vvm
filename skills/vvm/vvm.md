@@ -349,27 +349,26 @@ Status: running | completed | failed
 - Debugging: find which binding has which output
 - NOT for full transcript replay
 
-#### 4.5.3 Program Start Procedure
+#### 4.5.3 Program Start Algorithm
 
-When starting execution in filesystem state mode, the VM MUST:
+When you start executing a program in filesystem state mode:
 
-1. **Generate run-id** using format `YYYYMMDD-HHMMSS-<rand6>`
-2. **Create run directory**: `.vvm/runs/<run-id>/`
-3. **Create bindings directory**: `.vvm/runs/<run-id>/bindings/`
-4. **Copy entry program**: Write source to `.vvm/runs/<run-id>/program.vvm`
-5. **Initialize state.md**: Create with metadata header (run-id, program path, start timestamp, status=running)
-6. **Initialize counters**: Set binding counter to 0, anonymous counter to 0
+1. Generate a run-id (format: `YYYYMMDD-HHMMSS-<rand6>`)
+2. Create the run directory: `.vvm/runs/<run-id>/`
+3. Create the bindings directory: `.vvm/runs/<run-id>/bindings/`
+4. Copy the entry program to: `.vvm/runs/<run-id>/program.vvm`
+5. Initialize `state.md` with metadata header (status: running)
+6. Initialize the binding counter to 0
 
-Example initialization:
+Example narration:
 
 ```
-📍 Filesystem state mode enabled
-📍 Created run directory: .vvm/runs/20260127-143052-a7f3b2/
-📍 Copied program to: .vvm/runs/20260127-143052-a7f3b2/program.vvm
-📍 Initialized state.md
+📍 Filesystem state mode
+📍 Run: 20260127-143052-a7f3b2
+📍 Created .vvm/runs/20260127-143052-a7f3b2/
 ```
 
-#### 4.5.4 Agent Call Handling
+#### 4.5.4 Agent Call Algorithm
 
 For each agent call in filesystem state mode:
 
@@ -377,151 +376,148 @@ For each agent call in filesystem state mode:
 result = @agent `Task prompt.`(input)
 ```
 
-The VM MUST execute this algorithm:
+Execute these steps:
 
-**Step 1: Allocate binding path**
-- Increment binding counter
-- Path: `.vvm/runs/<run-id>/bindings/b<6-digit-counter>.md`
-- Example: `b000001.md`, `b000002.md`, ...
+1. **Allocate binding path**
+   - Increment binding counter
+   - Path: `.vvm/runs/<run-id>/bindings/b<counter padded to 6 digits>.md`
 
-**Step 2: Spawn subagent with binding instruction**
+2. **Spawn subagent**
+   - Render the task prompt template
+   - Include the binding contract (Section 4.5.5)
+   - Pass structured input (may contain refs from prior calls)
+   - Specify the write target path
 
-Include in the subagent spawn:
-- The task prompt (rendered template)
-- Structured input (may contain ref values from prior calls)
-- Write target path
-- Binding instruction (see Section 4.5.5)
+3. **Wait for completion**
 
-**Step 3: Wait for completion**
+4. **Verify the binding file**
+   - File exists at the allocated path
+   - File is non-empty
+   - On failure: return `error(kind="binding_failed")`, apply `retry=` if specified
 
-**Step 4: Verify binding file**
-- Check file exists at the allocated path
-- Check file is non-empty
-- If missing or empty: treat as error, apply `retry=` if specified, or return `error(kind="binding_failed")`
+5. **Construct the ref value**
 
-**Step 5: Construct ref value**
+   ```vvm
+   {
+     ref: ".vvm/runs/<run-id>/bindings/b000001.md",
+     summary: "<from subagent confirmation>",
+     mime: "text/markdown"
+   }
+   ```
 
-```vvm
-result = {
-  ref: ".vvm/runs/<run-id>/bindings/b000001.md",
-  summary: "<summary from subagent confirmation>",
-  mime: "text/markdown"
-}
-```
+6. **Bind the variable**
+   - `result` now holds the ref value
 
-**Step 6: Update state.md**
-- Add row to binding index: `result` → ref path → summary
-- Append to execution trace: `[timestamp] result = @agent (b000001)`
+7. **Update state.md**
+   - Add to binding index: name → path → summary
+   - Append to trace: `[timestamp] result = @agent (b000001)`
 
 Example narration:
 
 ```
-📍 Executing: result = @agent `Task prompt.`(input)
-⏳ Allocated binding: b000001.md
-⏳ Spawning subagent with binding instruction...
-📦 Subagent wrote to: .vvm/runs/.../bindings/b000001.md
-📦 Summary: "Completed analysis of 3 documents"
-✅ result bound to ref value
+📍 result = @researcher `Find papers on {topic}.`(topic)
+⏳ Allocated: b000001.md
+⏳ Spawning subagent...
+📦 Binding written: b000001.md
+📦 Summary: Found 3 papers on quantum computing
+✅ result bound
 ```
 
-#### 4.5.5 Subagent Contract
+#### 4.5.5 Subagent Binding Contract
 
-When spawning a subagent in filesystem state mode, include this binding instruction:
+When spawning a subagent, include this contract in the spawn instruction:
 
 ```text
-## Binding Instruction
+## Binding Contract
 
-You MUST write your complete output to this file:
-  Path: .vvm/runs/<run-id>/bindings/b<counter>.md
+Write your complete output to:
+  .vvm/runs/<run-id>/bindings/b<counter>.md
 
-After writing, return ONLY a short confirmation in this format:
+Then return ONLY this confirmation:
 
   Binding written: b<counter>
   Path: .vvm/runs/<run-id>/bindings/b<counter>.md
-  Summary: <1-3 sentence summary of what you produced>
+  Summary: <1-3 sentences describing what you produced>
 
-CRITICAL:
-- Write ALL output to the file, not to this chat
-- Your chat response must be ONLY the confirmation above
-- Do NOT paste file contents into the chat response
-- The summary must be bounded (1-3 sentences maximum)
+Your chat response contains only the confirmation above.
+All substantive output goes in the file.
 ```
 
-**Subagent requirements:**
-- MUST write full output to the specified path using the Write tool
-- MUST return only the confirmation payload (not the full output)
-- MUST provide a bounded summary (1-3 sentences)
-- MUST NOT include file contents in the chat response
+**Responsibility table:**
+
+| Actor | Writes | Returns |
+|-------|--------|---------|
+| VM | binding path allocation, state.md | ref value to caller |
+| Subagent | full output to binding file | confirmation + summary only |
 
 **Why this matters:**
-- Token control: large outputs don't consume VM context
-- Safety: sensitive content stays in files, not chat logs
-- Scalability: VM can orchestrate arbitrarily large workflows
+- Large outputs stay out of chat context
+- VM can orchestrate arbitrarily large workflows
+- Summaries provide enough info for routing decisions
 
-#### 4.5.6 Non-Assigned Agent Calls
+#### 4.5.6 Downstream Ref Passing
 
-If an agent call result is not assigned to a variable:
-
-```vvm
-@notifier `Send alert.`(data)   # no assignment
-```
-
-The VM SHOULD still:
-1. Allocate a binding file
-2. Execute the subagent with binding instruction
-3. Record in state.md with synthetic name `_anon_<counter>`
-
-This ensures all agent outputs are captured and inspectable, even for side-effect-only calls.
-
-Example state.md entry:
-
-```markdown
-| _anon_001 | .vvm/runs/.../bindings/b000003.md | Alert sent successfully |
-```
-
-#### 4.5.7 Downstream Ref Passing
-
-When an agent call receives input containing ref values:
+When input to an agent call contains ref values:
 
 ```vvm
 research = @researcher `Research topic.`(topic)
-report = @writer `Write report.`(research)   # research is a ref value
+report = @writer `Write report.`(research)   # research is a ref
 ```
 
-The VM MUST:
-
-1. **Pass ref objects as-is** (not expanded file contents)
-2. **Include the Ref Reading Protocol** in the subagent context
-
-Ref Reading Protocol (include in subagent spawn):
+The VM passes ref objects as-is, not expanded file contents. Include this protocol snippet in the subagent spawn:
 
 ```text
 ## Ref Reading Protocol
 
-Your input contains ref values. A ref value looks like:
-{
-  ref: ".vvm/runs/<run-id>/bindings/b000001.md",
-  summary: "Brief description of contents",
-  mime: "text/markdown"
-}
+Your input may contain ref values. A ref value looks like:
 
-To work with ref values:
-- The `summary` field gives you a preview of the content
-- If you need full content, use the Read tool on the `ref` path
-- You have read permission for: .vvm/runs/<run-id>/bindings/**
-- When citing content, reference by path (e.g., "per b000001.md")
+  {
+    ref: ".vvm/runs/<run-id>/bindings/b000001.md",
+    summary: "Brief description",
+    mime: "text/markdown"
+  }
 
-Do NOT assume ref contents from the summary alone if precision matters.
+Working with refs:
+- Use the summary for routing decisions when possible
+- Read the file at the ref path if you need full content
+- You have read permission for .vvm/runs/<run-id>/bindings/**
+- Cite by filename when referencing content (e.g., "per b000001.md")
 ```
 
-**Why pass refs instead of contents:**
-- Downstream agent decides if full content is needed
-- Small summaries may suffice for many tasks
-- Keeps VM context bounded regardless of intermediate sizes
+**Good vs Bad:**
+
+```vvm
+# Good: Pass ref, let downstream decide
+report = @writer `Summarize the research.`(research)
+
+# Bad: VM expands ref contents into prompt (defeats the purpose)
+# (The VM never does this — refs stay as refs)
+```
+
+#### 4.5.7 Unassigned Agent Calls
+
+Agent calls without assignment still produce bindings:
+
+```vvm
+@notifier `Send alert.`(data)   # no variable assigned
+```
+
+The VM:
+1. Allocates a binding file (same as assigned calls)
+2. Spawns the subagent with binding contract
+3. Records in state.md with synthetic name `_anon_<counter>`
+
+This ensures all agent outputs are captured and inspectable.
+
+Example state.md entry:
+
+| Name | Ref Path | Summary |
+|------|----------|---------|
+| _anon_001 | .vvm/runs/.../bindings/b000003.md | Alert sent |
 
 #### 4.5.8 Materializer Pattern
 
-If you need to pull file contents into VM context (rare), use an explicit materializer agent:
+Refs keep content out of context. If you genuinely need file contents in the VM's context, use an explicit materializer agent:
 
 ```vvm
 agent reader(
@@ -529,27 +525,23 @@ agent reader(
   permissions=perm(read=[".vvm/runs/**"], write=[], bash="deny", network="deny")
 )
 
-# Get research as ref value
 research = @researcher `Research quantum computing.`(topic)
 
-# Explicitly materialize excerpts into context
-excerpts = @reader `Read the research and extract the 3 most relevant quotes.`(research)
-
-# Now excerpts is a ref, but the reader has already done the extraction
-report = @writer `Write a report using these quotes.`(excerpts)
+# Explicitly pull excerpts into context
+excerpts = @reader `Extract the 3 most relevant quotes.`(research)
 ```
 
-**When to use materializers:**
-- You need specific excerpts in VM context
-- A semantic predicate needs to evaluate actual content
-- You're debugging and want to inspect intermediate values
+**When to use:**
+- You need specific excerpts for a semantic predicate
+- You're debugging and want to see intermediate content
+- A downstream agent cannot read files (unusual)
 
-**When NOT to use materializers:**
-- Default case: let downstream agents read refs directly
-- Passing data between agents (use refs)
-- Large intermediates (keep as refs)
+**When NOT to use:**
+- Default case: let agents read refs directly
+- Passing between agents: use refs
+- Large intermediates: keep as refs
 
-This pattern keeps costs explicit: materialization is a visible agent call, not hidden IO.
+The materializer pattern makes costs explicit: reading a file is a visible agent call, not hidden IO.
 
 ---
 
