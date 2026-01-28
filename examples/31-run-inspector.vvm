@@ -1,0 +1,31 @@
+# VVM Example 31: Run Inspector (Filesystem State Mode)
+# Inspects a prior run's artifacts to summarize what happened.
+# Useful for debugging and understanding workflow execution.
+
+agent inspector(
+  model="haiku",
+  permissions=perm(read=[".vvm/runs/**"], write=[], bash="deny", network="deny"),
+  prompt="Analyze VVM run artifacts and produce concise summaries."
+)
+
+# The run directory to inspect (would be passed as input in practice)
+run_id = "20260127-143052-a7f3b2"
+run_dir = ".vvm/runs/" + run_id
+
+# Inspect the run
+summary = @inspector `Analyze this VVM run directory and report:
+
+1. **Program**: What program was executed?
+2. **Status**: Did it complete successfully?
+3. **Bindings**: List each binding with:
+   - Name
+   - File path
+   - Size (if you can determine)
+   - Brief content summary (first 100 chars)
+4. **Timeline**: Execution order from the trace
+
+Run directory: {run_dir}
+
+Read state.md first, then inspect individual binding files as needed.`(run_dir)
+
+export summary

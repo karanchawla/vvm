@@ -16,6 +16,9 @@ Thumbs.db
 # Claude Code (local state)
 .claude/
 
+# VVM run artifacts (local state)
+.vvm/
+
 # API (Cloudflare Workers)
 api/node_modules/
 api/.wrangler/

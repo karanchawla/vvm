@@ -1,0 +1,36 @@
+# VVM Example 29: Ref Loop Accumulation (Filesystem State Mode)
+# Demonstrates how loops accumulate refs, not megatext.
+# Each iteration produces a small ref value.
+# The final summary receives a list of refs.
+
+agent worker(
+  model="haiku",
+  prompt="Process data chunks efficiently."
+)
+
+agent synthesizer(
+  model="sonnet",
+  prompt="Synthesize multiple results into coherent summaries."
+)
+
+# Data chunks to process
+chunks = [
+  "Analyze market trends in renewable energy",
+  "Analyze market trends in electric vehicles",
+  "Analyze market trends in battery storage"
+]
+
+# Process each chunk - accumulate refs
+results = []
+for chunk in chunks:
+  result = @worker `Process this analysis request: {chunk}`(chunk)
+  results = results + [result]
+  # Each result is a ref value, not full text
+  # The list stays small regardless of output size
+
+# Synthesize all results
+# The synthesizer receives refs and reads files as needed
+summary = @synthesizer `Synthesize these analysis results into a unified market report.
+Identify common themes and key insights.`(results)
+
+export summary

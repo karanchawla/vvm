@@ -272,6 +272,423 @@ When you encounter a module import (`from "path" import ...`):
 
 **Critical**: You MUST verify file existence with `test -f` before proceeding. Do not infer module contents from comments, variable names, or context. The file must exist on disk.
 
+### 4.5 Run State Management (Filesystem State Mode)
+
+When operating in **filesystem state mode**, the VM creates a run directory for each execution:
+
+```
+.vvm/
+  runs/
+    <run-id>/
+      program.vvm         # Copy of entry program
+      state.md            # VM-owned trace + binding index (small)
+      bindings/           # Agent output artifacts
+        b000001.md
+        b000002.md
+        ...
+      imports/            # Reserved for nested workflow executions
+```
+
+**Ownership rules:**
+- **VM owns**: `program.vvm`, `state.md`, directory creation
+- **Subagents write**: `bindings/b<counter>.md` (write-only, one file per call)
+- **Reserved**: `imports/` (for nested workflow executions)
+
+**Binding file naming:**
+- Files named by monotonic call counter: `b000001`, `b000002`, ...
+- NOT by variable name (avoids collisions in loops/functions)
+- VM maintains name→ref mapping in `state.md`
+
+#### 4.5.1 Run ID Generation
+
+Generate run-id with format: `YYYYMMDD-HHMMSS-<rand6>`
+
+Example: `20260127-143052-a7f3b2`
+
+Properties:
+- Sortable by time (lexicographic = chronological)
+- Unique (6 random chars prevent collisions for concurrent runs)
+- Human-readable (date visible at glance)
+
+#### 4.5.2 state.md Format
+
+The `state.md` file is the VM's execution trace and binding index. It MUST remain small.
+
+**Required sections:**
+
+```markdown
+# VVM Run: <run-id>
+
+Program: <program-path>
+Started: <ISO timestamp>
+Updated: <ISO timestamp>
+Status: running | completed | failed
+
+## Binding Index
+
+| Name | Ref Path | Summary |
+|------|----------|---------|
+| research | .vvm/runs/.../bindings/b000001.md | Found 3 papers... |
+| report | .vvm/runs/.../bindings/b000002.md | 2500-word report... |
+
+## Execution Trace
+
+- [timestamp] Started execution
+- [timestamp] research = @researcher (b000001)
+- [timestamp] report = @writer (b000002)
+- [timestamp] Completed with 2 exports
+```
+
+**MUST NOT contain:**
+- Full prompts or responses
+- Megatext dumps
+- Sensitive data (credentials, secrets)
+
+**Purpose:**
+- Quick inspection: "what happened in this run?"
+- Debugging: find which binding has which output
+- NOT for full transcript replay
+
+#### 4.5.3 Program Start Algorithm
+
+When you start executing a program in filesystem state mode:
+
+1. Generate a run-id (format: `YYYYMMDD-HHMMSS-<rand6>`)
+2. Create the run directory: `.vvm/runs/<run-id>/`
+3. Create the bindings directory: `.vvm/runs/<run-id>/bindings/`
+4. Copy the entry program to: `.vvm/runs/<run-id>/program.vvm`
+5. Initialize `state.md` with metadata header (status: running)
+6. Initialize the binding counter to 0
+
+Example narration:
+
+```
+📍 Filesystem state mode
+📍 Run: 20260127-143052-a7f3b2
+📍 Created .vvm/runs/20260127-143052-a7f3b2/
+```
+
+#### 4.5.4 Agent Call Algorithm
+
+For each agent call in filesystem state mode:
+
+```vvm
+result = @agent `Task prompt.`(input)
+```
+
+Execute these steps:
+
+1. **Allocate binding path**
+   - Increment binding counter
+   - Path: `.vvm/runs/<run-id>/bindings/b<counter padded to 6 digits>.md`
+
+2. **Spawn subagent**
+   - Render the task prompt template
+   - Include the binding contract (Section 4.5.5)
+   - Pass structured input (may contain refs from prior calls)
+   - Specify the write target path
+
+3. **Wait for completion**
+
+4. **Verify the binding file**
+   - File exists at the allocated path
+   - File is non-empty
+   - On failure: return `error(kind="binding_failed")`, apply `retry=` if specified
+
+5. **Construct the ref value**
+
+   ```vvm
+   {
+     ref: ".vvm/runs/<run-id>/bindings/b000001.md",
+     summary: "<from subagent confirmation>",
+     mime: "text/markdown"
+   }
+   ```
+
+6. **Bind the variable**
+   - `result` now holds the ref value
+
+7. **Update state.md**
+   - Add to binding index: name → path → summary
+   - Append to trace: `[timestamp] result = @agent (b000001)`
+
+Example narration:
+
+```
+📍 result = @researcher `Find papers on {topic}.`(topic)
+⏳ Allocated: b000001.md
+⏳ Spawning subagent...
+📦 Binding written: b000001.md
+📦 Summary: Found 3 papers on quantum computing
+✅ result bound
+```
+
+#### 4.5.5 Subagent Binding Contract
+
+When spawning a subagent, include this contract in the spawn instruction:
+
+```text
+## Binding Contract
+
+Write your complete output to:
+  .vvm/runs/<run-id>/bindings/b<counter>.md
+
+Then return ONLY this confirmation:
+
+  Binding written: b<counter>
+  Path: .vvm/runs/<run-id>/bindings/b<counter>.md
+  Summary: <1-3 sentences describing what you produced>
+
+Your chat response contains only the confirmation above.
+All substantive output goes in the file.
+```
+
+**Responsibility table:**
+
+| Actor | Writes | Returns |
+|-------|--------|---------|
+| VM | binding path allocation, state.md | ref value to caller |
+| Subagent | full output to binding file | confirmation + summary only |
+
+**Why this matters:**
+- Large outputs stay out of chat context
+- VM can orchestrate arbitrarily large workflows
+- Summaries provide enough info for routing decisions
+
+#### 4.5.6 Downstream Ref Passing
+
+When input to an agent call contains ref values:
+
+```vvm
+research = @researcher `Research topic.`(topic)
+report = @writer `Write report.`(research)   # research is a ref
+```
+
+The VM passes ref objects as-is, not expanded file contents. Include this protocol snippet in the subagent spawn:
+
+```text
+## Ref Reading Protocol
+
+Your input may contain ref values. A ref value looks like:
+
+  {
+    ref: ".vvm/runs/<run-id>/bindings/b000001.md",
+    summary: "Brief description",
+    mime: "text/markdown"
+  }
+
+Working with refs:
+- Use the summary for routing decisions when possible
+- Read the file at the ref path if you need full content
+- You have read permission for .vvm/runs/<run-id>/bindings/**
+- Cite by filename when referencing content (e.g., "per b000001.md")
+```
+
+**Good vs Bad:**
+
+```vvm
+# Good: Pass ref, let downstream decide
+report = @writer `Summarize the research.`(research)
+
+# Bad: VM expands ref contents into prompt (defeats the purpose)
+# (The VM never does this — refs stay as refs)
+```
+
+#### 4.5.7 Unassigned Agent Calls
+
+Agent calls without assignment still produce bindings:
+
+```vvm
+@notifier `Send alert.`(data)   # no variable assigned
+```
+
+The VM:
+1. Allocates a binding file (same as assigned calls)
+2. Spawns the subagent with binding contract
+3. Records in state.md with synthetic name `_anon_<counter>`
+
+This ensures all agent outputs are captured and inspectable.
+
+Example state.md entry:
+
+| Name | Ref Path | Summary |
+|------|----------|---------|
+| _anon_001 | .vvm/runs/.../bindings/b000003.md | Alert sent |
+
+#### 4.5.8 Materializer Pattern
+
+Refs keep content out of context. If you genuinely need file contents in the VM's context, use an explicit materializer agent:
+
+```vvm
+agent reader(
+  model="haiku",
+  permissions=perm(read=[".vvm/runs/**"], write=[], bash="deny", network="deny")
+)
+
+research = @researcher `Research quantum computing.`(topic)
+
+# Explicitly pull excerpts into context
+excerpts = @reader `Extract the 3 most relevant quotes.`(research)
+```
+
+**When to use:**
+- You need specific excerpts for a semantic predicate
+- You're debugging and want to see intermediate content
+- A downstream agent cannot read files (unusual)
+
+**When NOT to use:**
+- Default case: let agents read refs directly
+- Passing between agents: use refs
+- Large intermediates: keep as refs
+
+The materializer pattern makes costs explicit: reading a file is a visible agent call, not hidden IO.
+
+### 4.6 Debugging with Run Artifacts
+
+When a workflow fails or produces unexpected results, inspect the run artifacts.
+
+#### Finding Your Run
+
+Run directories are at `.vvm/runs/<run-id>/`. The most recent run has the latest timestamp:
+
+```bash
+ls -lt .vvm/runs/ | head -5
+```
+
+#### Reading state.md
+
+Open `.vvm/runs/<run-id>/state.md` to see:
+- **Status**: Did the run complete, fail, or get interrupted?
+- **Binding Index**: Which variables were bound to which files?
+- **Execution Trace**: What happened in what order?
+
+Example state.md:
+
+```markdown
+# VVM Run: 20260127-143052-a7f3b2
+
+Status: completed
+
+## Binding Index
+
+| Name | Ref Path | Summary |
+|------|----------|---------|
+| research | .../bindings/b000001.md | Found 3 papers |
+| report | .../bindings/b000002.md | 2500-word report |
+
+## Execution Trace
+
+- [14:30:52] Started
+- [14:30:55] research = @researcher (b000001)
+- [14:31:02] report = @writer (b000002)
+- [14:31:05] Completed
+```
+
+#### Inspecting Binding Files
+
+Each agent output is in `.vvm/runs/<run-id>/bindings/b<counter>.md`. Open these to see the full output:
+
+```bash
+cat .vvm/runs/20260127-143052-a7f3b2/bindings/b000001.md
+```
+
+#### Common Issues
+
+| Symptom | Check |
+|---------|-------|
+| Missing binding file | Subagent may have failed to write; check for error in trace |
+| state.md very large | May have accidentally logged full outputs; check safety defaults |
+| Unexpected output | Read the binding file to see what the agent actually produced |
+
+#### Sharing Runs for Debugging
+
+To share a run for debugging:
+1. Copy the entire `.vvm/runs/<run-id>/` directory
+2. Include `program.vvm`, `state.md`, and `bindings/`
+3. Do NOT share if bindings contain sensitive data
+
+### 4.7 Choosing a State Mode
+
+VVM supports two state modes. Choose based on your workflow characteristics.
+
+#### In-Context Mode (Default)
+
+All state stays in token context. Agent calls return strings.
+
+**Use when:**
+- Quick prototyping and iteration
+- Small programs (< 10 agent calls)
+- Outputs are small (< 1KB each)
+- You don't need to inspect intermediate outputs
+- Tools/file access unavailable
+
+**Characteristics:**
+- No filesystem artifacts created
+- All outputs visible in conversation
+- Context grows with each agent call
+- May hit token limits on long workflows
+
+#### Filesystem Mode
+
+Agent outputs written to `.vvm/runs/<run-id>/bindings/`. Agent calls return ref values.
+
+**Use when:**
+- Production workflows
+- Long pipelines (10+ agent calls)
+- Large intermediate outputs
+- You want to inspect/debug artifacts
+- Reproducibility matters
+
+**Characteristics:**
+- Creates run directory with artifacts
+- Context stays bounded (refs are small)
+- Can inspect any intermediate output
+- Supports very long workflows
+
+#### Switching Modes
+
+```bash
+# Default: in-context mode
+/vvm-run examples/my-program.vvm
+
+# Explicit filesystem mode
+/vvm-run examples/my-program.vvm --state=filesystem
+```
+
+#### Decision Table
+
+| Factor | In-Context | Filesystem |
+|--------|------------|------------|
+| Agent calls | < 10 | 10+ |
+| Output sizes | Small | Any size |
+| Debugging | Limited | Full artifacts |
+| Token usage | Grows | Bounded |
+| File access | Not needed | Required |
+
+### 4.8 Scope and Limitations
+
+Filesystem state mode provides artifact-backed agent outputs. The following are explicitly out of scope:
+
+#### Database Backends
+
+State is stored in the local filesystem only. Database backends (SQLite, PostgreSQL) are not supported. For distributed or persistent state, copy run directories manually.
+
+#### Binary and Large Attachments
+
+Binding files are markdown text. Binary files (images, PDFs) and very large outputs (> 10MB) should be handled by the agent writing to a separate location and including a path reference.
+
+#### Durable Resume
+
+Runs cannot be resumed after interruption. If a run fails partway through, you must re-run from the beginning. The `state.md` trace helps identify where failure occurred.
+
+#### Ref URI Scheme
+
+Refs use filesystem paths (`.vvm/runs/<id>/bindings/b000001.md`). There is no URI scheme (`vvm://...`) for cross-machine or network references.
+
+#### Transcript Logging
+
+Full prompts and responses are not logged by default. This is intentional for safety. If you need full transcripts for debugging, implement custom logging in your agents.
+
 ---
 
 ## 5. Narration Protocol
@@ -402,6 +819,27 @@ These functions are always available:
 - Non-list input raises `thrown` error
 - Non-boolean predicate raises `thrown` error
 - Error value from `f`/`pred` returns immediately (fail-fast)
+
+### 8.4 Safety Defaults (Filesystem State Mode)
+
+When operating in filesystem state mode, the runtime enforces safe defaults:
+
+**Git exclusion:**
+- `.vvm/` MUST be in `.gitignore` (local state, not version-controlled)
+
+**No transcript logging:**
+- Do NOT write full prompts/responses to disk by default
+- `state.md` contains only: metadata, binding index, short narration
+- Opt-in transcript logging may be added later with explicit flag
+
+**Subagent permissions (least privilege):**
+- **Write scope**: Only `.vvm/runs/<run-id>/bindings/**`
+- **Read scope**: Only when explicitly needed (materializer agents)
+- Subagents MUST NOT write outside their binding file
+
+**Atomic writes:**
+- Use write-then-rename for `state.md` updates (crash-safe)
+- Binding files are write-once (no updates after creation)
 
 ---
 

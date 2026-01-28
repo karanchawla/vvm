@@ -1,0 +1,30 @@
+# VVM Example 28: Ref Composition (Filesystem State Mode)
+# Demonstrates basic ref passing between agents.
+# In filesystem mode, research returns a ref value, not the full text.
+# The writer receives the ref and reads the file if needed.
+
+agent researcher(
+  model="sonnet",
+  prompt="Research topics thoroughly with citations."
+)
+
+agent writer(
+  model="sonnet",
+  prompt="Write clear, well-structured reports."
+)
+
+# Input topic
+topic = "quantum computing applications in cryptography"
+
+# Research phase - returns ref value in filesystem mode
+research = @researcher `Research {topic}. Include:
+- Current state of the field
+- Key breakthroughs
+- Practical applications
+- Future directions`(topic)
+
+# Writing phase - receives ref, reads file if full content needed
+report = @writer `Write a comprehensive report using this research.
+Structure with introduction, body sections, and conclusion.`(research)
+
+export report
