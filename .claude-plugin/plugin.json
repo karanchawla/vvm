@@ -1,7 +1,7 @@
 {
     "name": "vvm",
     "description": "A language for agentic programs where the LLM is the runtime",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "author": {
         "name": "Karan Chawla",
         "url": "https://github.com/karanchawla"
