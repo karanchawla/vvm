@@ -1,0 +1,211 @@
+# VVM Example 21: Devil's Advocate
+# Adversarial debate pattern for rigorous decision-making.
+# Two agents argue opposing positions, then a judge synthesizes a balanced decision.
+#
+# Demonstrates:
+# - Adversarial pattern (agents with opposing objectives)
+# - Multi-round dialogue (opening arguments -> rebuttals -> synthesis)
+# - Parallel execution via pmap (opening arguments run concurrently)
+# - pack() for combining debate materials (fan-in pattern)
+# - Model tiering (sonnet for debaters, opus for synthesis)
+#
+# Research basis: Steelmanning, criterion-based evaluation, moderate disagreement
+# See: D3 Framework, Multi-Agent Debate literature
+
+# === Debate Agents ===
+
+agent advocate(
+  model="sonnet",
+  prompt="""You argue IN FAVOR of proposals. Your approach:
+
+1. ACKNOWLEDGE genuine risks first (shows intellectual honesty)
+2. Present concrete benefits with supporting evidence
+3. Explain how benefits outweigh risks
+4. Propose specific risk mitigations
+
+Be persuasive but not dismissive. Steelman the opposition's concerns
+before explaining why proceeding is still the right choice.
+
+Structure your argument with clear sections:
+- Understanding the Risks (acknowledge)
+- The Case For (benefits)
+- Why Benefits Outweigh Risks (analysis)
+- Recommended Mitigations (action items)"""
+)
+
+agent devils_advocate(
+  model="sonnet",
+  prompt="""You argue AGAINST proposals. Your approach:
+
+1. STEELMAN the proposal first (show you understand its appeal)
+2. Surface specific risks with concrete scenarios
+3. Identify hidden costs and second-order effects
+4. Propose concrete alternatives
+
+Be thorough but fair. Your goal is rigorous analysis, not contrarianism.
+Make the strongest possible case against, grounded in evidence.
+
+Structure your argument with clear sections:
+- The Appeal (steelman)
+- Critical Risks (specific scenarios)
+- Hidden Costs (second-order effects)
+- Better Alternatives (concrete options)"""
+)
+
+agent judge(
+  model="opus",
+  prompt="""You synthesize debates into balanced decisions using structured evaluation.
+
+Evaluate each argument on:
+- Evidence: Are claims supported by specifics?
+- Reasoning: Is the logic sound and complete?
+- Acknowledgment: Did they engage with opposing points fairly?
+
+Be fair but decisive. Acknowledge uncertainty while providing actionable guidance.
+Explain which arguments swayed you and why.
+
+Your decision format:
+## Decision: [PROCEED / DO NOT PROCEED / PROCEED WITH CONDITIONS]
+
+## Argument Analysis
+[Evaluate both sides on evidence, reasoning, acknowledgment]
+
+## Most Compelling Points
+[What swayed you from each side]
+
+## Synthesis
+[How the arguments interacted]
+
+## Recommendation
+[Clear, actionable guidance with any conditions]"""
+)
+
+# === The Decision to Debate ===
+
+proposal = "We should require engineers to work from the office 3 days per week"
+
+context = """
+Company Background:
+- Series B startup, 45 engineers across 3 teams
+- Went fully remote during 2020, never returned
+- HQ in San Francisco, engineers spread across US timezones
+- Recently raised $40M, planning to double engineering team
+
+Current State (Fully Remote):
+- Collaboration happens via Slack, Zoom, Linear, Notion
+- Engineers report high satisfaction (4.2/5 in surveys)
+- Two "offsite" gatherings per year (3 days each)
+- 60% of engineers live outside commuting distance of SF
+
+Concerns Raised by Leadership:
+- Junior engineers struggling with mentorship and growth
+- Cross-team projects taking longer than expected
+- "Culture" feels weaker than pre-pandemic
+- Innovation metric (new product ideas shipped) down 30%
+- Some senior engineers quietly disengaged
+
+Data Points:
+- Attrition: 12% (industry average for remote: 15%)
+- Glassdoor rating: 4.1 (was 4.4 pre-pandemic)
+- Time-to-productivity for new hires: 4 months (was 2.5 months)
+- Competitors Stripe, Airbnb now require 3 days in-office
+
+Constraints:
+- 60% of team would need to relocate or quit if mandate enforced
+- SF office lease expires in 8 months (decision point)
+- Q4 critical product launch depends on current team
+"""
+
+# === Round 1: Opening Arguments (parallel) ===
+# Both sides argue independently - these are independent tasks, so run concurrently
+
+def argue_for(ctx):
+  return @advocate `Make your opening argument FOR this proposal:
+
+PROPOSAL: {proposal}
+
+CONTEXT:
+{context}
+
+Present your strongest case. Be specific about benefits and mitigations.`(ctx)
+
+def argue_against(ctx):
+  return @devils_advocate `Make your opening argument AGAINST this proposal:
+
+PROPOSAL: {proposal}
+
+CONTEXT:
+{context}
+
+Present your strongest case. Be specific about risks and alternatives.`(ctx)
+
+# pmap runs both opening arguments concurrently
+debate_context = pack(proposal, context)
+openings = pmap([argue_for, argue_against], fn => fn(debate_context))
+
+pro_argument = openings[0]
+con_argument = openings[1]
+
+# === Round 2: Rebuttals ===
+# Each side responds to the other's opening argument
+
+pro_rebuttal = @advocate `The opposition argued against the proposal:
+
+--- THEIR ARGUMENT ---
+{con_argument}
+--- END ARGUMENT ---
+
+Counter their key points. Address their strongest objections directly.
+Strengthen your case for proceeding.`(con_argument)
+
+con_rebuttal = @devils_advocate `The proponent argued for the proposal:
+
+--- THEIR ARGUMENT ---
+{pro_argument}
+--- END ARGUMENT ---
+
+Counter their key points. Address their strongest claims directly.
+Strengthen your case against proceeding.`(pro_argument)
+
+# === Synthesis: Judge Reviews Full Debate ===
+# pack() combines all debate materials into a structured object for the judge
+
+debate = pack(
+  proposal=proposal,
+  context=context,
+  pro_opening=pro_argument,
+  con_opening=con_argument,
+  pro_rebuttal=pro_rebuttal,
+  con_rebuttal=con_rebuttal
+)
+
+decision = @judge `Review this complete debate and render your decision:
+
+## PROPOSAL
+{proposal}
+
+## CONTEXT
+{context}
+
+## ROUND 1: OPENING ARGUMENTS
+
+### Advocate (FOR)
+{pro_opening}
+
+### Devil's Advocate (AGAINST)
+{con_opening}
+
+## ROUND 2: REBUTTALS
+
+### Advocate's Rebuttal
+{pro_rebuttal}
+
+### Devil's Advocate's Rebuttal
+{con_rebuttal}
+
+---
+
+Evaluate both sides fairly. Identify the most compelling points.
+Render a clear decision with actionable recommendations.`(debate)
+
+export decision

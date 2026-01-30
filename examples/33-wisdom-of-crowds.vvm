@@ -1,0 +1,164 @@
+# VVM Example 33: Wisdom of Crowds
+# Ensemble voting pattern for robust decision-making.
+# N independent evaluators judge in parallel; majority wins.
+#
+# Demonstrates:
+# - parallel() with join="any" and count (wait for majority)
+# - on_fail="continue" (collect all votes even if some fail)
+# - Filesystem state mode: each evaluator writes to branch binding
+# - Named branches with result aggregation
+# - memory_mode="fresh" for independent parallel workers
+#
+# Research basis: Condorcet's Jury Theorem, Ensemble Methods
+# Key insight: Independent errors cancel; correlated errors compound.
+#
+# Named after the 1906 observation by Francis Galton at a county fair:
+# The median of 800 guesses about an ox's weight was within 1% of the truth.
+# Crowds are wise when judgments are independent and aggregated well.
+
+# === The Evaluators ===
+# Five independent analysts, each with a slightly different perspective.
+# They must judge independently (no shared state) to avoid herding.
+
+agent evaluator(
+  model="sonnet",
+  prompt="""You are an independent analyst evaluating a business proposal.
+
+Your evaluation criteria:
+1. Market viability (is there real demand?)
+2. Execution risk (can this team deliver?)
+3. Financial soundness (do the numbers work?)
+4. Competitive position (defensible advantage?)
+
+Rules for independent judgment:
+- Base your verdict ONLY on the proposal, not on what others might think
+- Be decisive: you must vote APPROVE or REJECT
+- Provide a confidence score (0.0-1.0)
+- If uncertain, lean toward the side with stronger evidence
+
+Output format:
+## Verdict: [APPROVE/REJECT]
+## Confidence: [0.0-1.0]
+## Reasoning
+[1-2 paragraphs explaining your judgment]"""
+)
+
+agent synthesizer(
+  model="opus",
+  prompt="""You aggregate independent evaluations into a final decision.
+
+The Wisdom of Crowds principle:
+- Majority vote typically outperforms any single expert
+- BUT only if judgments are truly independent
+- Look for correlated errors (did evaluators make the same mistake?)
+
+Your job:
+1. Count votes (APPROVE vs REJECT)
+2. Weight by confidence scores
+3. Identify any suspicious agreement (herding signal)
+4. Produce a final verdict with synthesis
+
+Output format:
+## Final Verdict: [APPROVE/REJECT/ABSTAIN]
+## Vote Breakdown
+| Evaluator | Verdict | Confidence |
+|-----------|---------|------------|
+...
+
+## Synthesis
+[How the votes interacted; any dissenting insights worth preserving]
+
+## Decision Rationale
+[Why the majority view is/isn't reliable in this case]"""
+)
+
+# === The Proposal Under Review ===
+
+proposal = """
+Startup: CloudKitchen AI
+
+Pitch: We use computer vision and ML to optimize commercial kitchen operations.
+- Camera system tracks ingredient usage, waste, and cook times
+- AI suggests menu adjustments and prep schedules
+- Reduces food waste by 30% and labor costs by 15% (based on 3 pilot locations)
+
+Ask: $2M seed round at $10M pre-money valuation
+
+Team:
+- CEO: Former head of ops at DoorDash (5 years)
+- CTO: PhD in computer vision from Stanford, previously at Cruise
+- COO: Former restaurant owner (3 locations, profitable exit)
+
+Traction:
+- 3 paying pilot customers (enterprise cafeterias)
+- $8K MRR, growing 20% month-over-month
+- 95% customer retention (6 month track record)
+
+Competition:
+- Toast and Square focus on POS, not kitchen ops
+- A few startups in restaurant analytics but none with CV approach
+- Potential for Toast/Square acquisition (exit path)
+
+Risks:
+- Hardware + software is harder than pure SaaS
+- Restaurant industry has thin margins, long sales cycles
+- Privacy concerns with cameras in kitchens
+"""
+
+# === Phase 1: Independent Parallel Evaluation ===
+# Each evaluator judges independently with fresh memory (no shared state).
+# We wait for 3 of 5 (majority) to proceed quickly while tolerating failures.
+
+parallel(join="any", count=3, on_fail="continue") as votes:
+  analyst_1 = @evaluator `Evaluate this investment proposal:
+
+{proposal}
+
+Focus especially on MARKET VIABILITY. Is there real demand for this solution?`(proposal, memory_mode="fresh")
+
+  analyst_2 = @evaluator `Evaluate this investment proposal:
+
+{proposal}
+
+Focus especially on EXECUTION RISK. Can this team actually deliver?`(proposal, memory_mode="fresh")
+
+  analyst_3 = @evaluator `Evaluate this investment proposal:
+
+{proposal}
+
+Focus especially on FINANCIAL SOUNDNESS. Do the numbers make sense?`(proposal, memory_mode="fresh")
+
+  analyst_4 = @evaluator `Evaluate this investment proposal:
+
+{proposal}
+
+Focus especially on COMPETITIVE POSITION. Is there a defensible moat?`(proposal, memory_mode="fresh")
+
+  analyst_5 = @evaluator `Evaluate this investment proposal:
+
+{proposal}
+
+Play devil's advocate. What could go wrong that others might miss?`(proposal, memory_mode="fresh")
+
+# votes._completed lists which 3 evaluators finished first
+# If any evaluators failed, their entries are error values (with on_fail="continue")
+
+# === Phase 2: Synthesis ===
+# Aggregate the independent judgments into a final decision.
+# The synthesizer sees all votes (including any errors) and weighs them.
+
+decision = @synthesizer `Aggregate these independent evaluations:
+
+{votes}
+
+The _completed field shows which evaluators finished first: {votes._completed}
+
+Apply the Wisdom of Crowds principle:
+- Majority vote across confident evaluators
+- Weight by confidence scores
+- Flag any concerning patterns (e.g., all agreeing for the same flawed reason)
+
+Produce a final investment recommendation.`(votes)
+
+export decision
+export votes

@@ -223,7 +223,7 @@ for i in range(10):
 | 07  | for-loop               | For loops               |
 | 08  | with-input             | Context passing         |
 | 09  | agent-options          | retry, timeout, backoff |
-| 10  | derived-agents         | .with() and inline      |
+| 10  | code-council           | .with() derived agents  |
 | 11  | parallel-pmap          | Parallel execution      |
 | 12  | functions              | def and return          |
 | 13  | skill-imports          | Skill imports           |
@@ -234,7 +234,7 @@ for i in range(10):
 | 18  | constrain-require      | Quality constraints     |
 | 19  | refine-loop            | Iterative improvement   |
 | 20  | collection-helpers     | map, filter, reduce     |
-| 21  | pack-helper            | Named fan-in            |
+| 21  | devils-advocate        | Adversarial debate      |
 | 22  | full-research-pipeline | Complex workflow        |
 | 23  | ralph-wiggum-loop      | Continuous improvement  |
 | 24  | agent-memory-basic     | Memory binding + digest/ledger |

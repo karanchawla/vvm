@@ -255,6 +255,136 @@ results = pmap(["Task 1", "Task 2", "Task 3"], process)
 
 ---
 
+## Parallel Block Anti-Patterns
+
+These anti-patterns apply specifically to `parallel()` blocks.
+
+### Shared Memory Key Under `parallel`
+
+**Problem:** Parallel branches share the same memory key and try to write concurrently.
+
+```vvm
+agent helper(model="sonnet", memory={ scope: "project", key: "shared" })
+
+# Bad: All branches compete for the same memory lock
+parallel() as results:
+  a = @helper `Task A.`(x)  # Tries to acquire lock
+  b = @helper `Task B.`(y)  # Blocked waiting for lock
+  c = @helper `Task C.`(z)  # Blocked waiting for lock
+```
+
+**Why it's bad:**
+- Causes lock contention (or `error(kind="locked")`)
+- Serializes parallel work (defeating the purpose)
+- Memory evolution depends on scheduling order
+
+**Solution:** Use `memory_mode="fresh"` for parallel workers, then merge sequentially.
+
+```vvm
+# Good: Each branch runs stateless; merge step updates memory
+parallel() as results:
+  a = @helper `Task A.`(x, memory_mode="fresh")
+  b = @helper `Task B.`(y, memory_mode="fresh")
+  c = @helper `Task C.`(z, memory_mode="fresh")
+
+summary = @helper `Merge results.`(results)  # Single writer
+```
+
+---
+
+### Assuming All Branches Complete
+
+**Problem:** Code assumes all branches finished when using `join="any"` or `join="first"`.
+
+```vvm
+# Bad: Assumes all branches completed
+parallel(join="any", count=2) as results:
+  a = @fast `Quick.`(x)
+  b = @medium `Medium.`(x)
+  c = @slow `Slow.`(x)
+
+# Accessing cancelled branch raises an error or returns undefined
+process(results.a)
+process(results.b)
+process(results.c)  # May not exist!
+```
+
+**Why it's bad:**
+- With `join="any"`, only `count` branches complete
+- With `join="first"`, only one branch completes
+- Accessing cancelled branches fails or returns error values
+
+**Solution:** Check `_completed` or `_winner` before accessing branches.
+
+```vvm
+# Good: Only access completed branches
+parallel(join="any", count=2) as results:
+  a = @fast `Quick.`(x)
+  b = @medium `Medium.`(x)
+  c = @slow `Slow.`(x)
+
+for name in results._completed:
+  process(results[name])
+```
+
+---
+
+### Dependencies Between Parallel Branches
+
+**Problem:** Parallel branches that depend on each other's results.
+
+```vvm
+# Bad: Branch b depends on branch a
+parallel() as results:
+  a = @fetcher `Get data.`(source)
+  b = @analyzer `Analyze.`(a)  # WRONG: 'a' doesn't exist yet!
+```
+
+**Why it's bad:**
+- Branches are evaluated before spawning, but values aren't available
+- Creates undefined behavior or errors
+- Defeats the purpose of parallelism
+
+**Solution:** Use sequential steps for dependencies, parallel for independent work.
+
+```vvm
+# Good: Sequential for dependencies, parallel for independent
+data = @fetcher `Get data.`(source)
+
+parallel() as results:
+  analysis = @analyst `Analyze data.`(data)
+  summary = @summarizer `Summarize data.`(data)
+  visual = @visualizer `Visualize data.`(data)
+```
+
+---
+
+### Single Branch Parallel
+
+**Problem:** Using `parallel` with only one branch.
+
+```vvm
+# Bad: Single branch parallel (no benefit)
+parallel(join="first") as result:
+  answer = @solver `Solve problem.`(problem)
+```
+
+**Why it's bad:**
+- No parallelism benefit
+- Adds overhead and complexity
+- `join="first"` with one branch is meaningless
+
+**Solution:** Use direct agent call for single tasks.
+
+```vvm
+# Good: Direct call
+answer = @solver `Solve problem.`(problem)
+```
+
+Note: VVM emits warning W041 for this anti-pattern.
+
+---
+
 ## Reliability Anti-Patterns
 
 ### Transcript Stuffing into Memory
@@ -535,9 +665,13 @@ final = refine(initial, max=5, done=is_done, step=step)
 | Unbounded Loops | No termination guarantee | Use refine with max |
 | Redundant Computation | Repeating expensive work | Cache and reuse |
 | Sequential When Parallel | Independent tasks in sequence | Use pmap |
+| Shared Memory Key (parallel) | Lock contention in branches | memory_mode="fresh" + merge |
+| Assuming All Complete | Access cancelled branches | Check _completed/_winner |
+| Parallel Dependencies | Branches depend on each other | Sequential for dependencies |
+| Single Branch Parallel | No parallelism benefit | Direct agent call |
 | Transcript Stuffing | Unbounded, low-signal memory | Digest + retain conventions |
 | Persisting Secrets | Secrets leak into memory files | Keep secrets out of memory |
-| Shared Memory Key | Parallel writes/lock contention | Fresh/per-key + merge |
+| Shared Memory Key (pmap) | Parallel writes/lock contention | Fresh/per-key + merge |
 | Silent Failures | Ignoring error values | Match on errors |
 | Fire and Forget | No error handling | Handle or log errors |
 | Overly Broad Handling | Catching all errors same way | Handle specific errors |

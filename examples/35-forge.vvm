@@ -1,0 +1,130 @@
+# VVM Example 35: Forge
+# Parallel work with sequential memory merge.
+# Like a blacksmith combining separately heated materials.
+#
+# Demonstrates:
+# - parallel() with memory-enabled agent
+# - memory_mode="fresh" for parallel safety
+# - Sequential merge step that updates memory
+# - Clean memory ledger (single update per run)
+#
+# Named after a blacksmith's forge — where separate pieces
+# are shaped independently, then combined by a master smith
+# into a unified whole. No two smiths hammer the same piece.
+#
+# Pattern: Parallel workers gather independently,
+# then a single smith combines their work.
+
+# === The Research Team ===
+# All share the same memory key, but only the synthesizer writes.
+
+agent researcher(
+  model="sonnet",
+  prompt="""You research topics thoroughly and maintain research memory.
+
+Your approach:
+- Find key insights, not exhaustive lists
+- Cite sources when possible
+- Focus on what's new or surprising
+
+When updating memory (only in sequential phase), use vvm-memory to store:
+- Key findings worth remembering
+- Open questions discovered
+- Connections to prior research
+
+Never store raw URLs or full paper text—summarize insights.""",
+  memory={ scope: "project", key: "research" }
+)
+
+agent synthesizer(
+  model="opus",
+  prompt="""You synthesize multiple research streams into coherent reports.
+
+Your approach:
+- Find common threads across streams
+- Highlight contradictions worth exploring
+- Identify gaps in collective understanding
+
+After synthesis, update research memory with:
+- The unified insight (what we now know)
+- Remaining questions (what we still don't know)
+- Recommended next steps
+
+Keep memory updates concise and actionable.""",
+  memory={ scope: "project", key: "research" }
+)
+
+# === The Topic ===
+
+topic = "the intersection of AI safety and interpretability"
+
+# === Phase 1: Parallel Research (Fresh Memory) ===
+# Each researcher works independently without memory contention.
+# They can READ existing memory (for context) but don't WRITE.
+# This is the key insight: parallel reads are safe, writes need sequencing.
+
+parallel(on_fail="continue") as research:
+  technical = @researcher `Research technical approaches to {topic}.
+
+Focus on:
+- Mechanistic interpretability methods
+- Activation patching and causal tracing
+- Circuit analysis techniques
+- Scalability challenges
+
+What's working? What's hitting walls?`(topic, memory_mode="fresh")
+
+  empirical = @researcher `Research empirical findings about {topic}.
+
+Focus on:
+- Case studies where interpretability helped safety
+- Experiments that changed our understanding
+- Failures that revealed gaps
+- Benchmarks and their limitations
+
+What have we learned from practice?`(topic, memory_mode="fresh")
+
+  theoretical = @researcher `Research theoretical foundations of {topic}.
+
+Focus on:
+- Formal frameworks for interpretability
+- Mathematical models of neural computation
+- Impossibility results and their implications
+- Connections to other fields (information theory, etc.)
+
+What does theory tell us about limits?`(topic, memory_mode="fresh")
+
+# At this point:
+# - Three researchers ran concurrently
+# - No lock contention (all used fresh memory)
+# - Each produced independent findings
+
+# === Phase 2: Sequential Merge ===
+# Single synthesizer reads all research and updates memory once.
+# This ensures clean, non-interleaved memory evolution.
+
+report = @synthesizer `Synthesize these three research streams on {topic}:
+
+## Technical Research
+{research.technical}
+
+## Empirical Research
+{research.empirical}
+
+## Theoretical Research
+{research.theoretical}
+
+---
+
+Create a unified report that:
+1. Identifies the key insight connecting all three streams
+2. Highlights the most important open questions
+3. Suggests concrete next steps for research
+
+Then update the research memory with what we've learned.
+Keep the memory update focused on durable insights, not transient details.`(research)
+
+# The synthesizer is the single writer.
+# Memory ledger will show one clean update, not three interleaved ones.
+
+export report

@@ -44,7 +44,7 @@ There are no futures, promises, or lazy values. Each statement fully completes b
 
 ### 2.2 Explicit Parallelism Only
 
-The runtime MUST NOT infer parallelism. Independent agent calls do NOT run concurrently unless explicitly requested via `pmap`.
+The runtime does not infer parallelism. Independent agent calls run sequentially unless you explicitly request parallelism via `pmap` or `parallel` blocks.
 
 ```vvm
 # These run SEQUENTIALLY (not in parallel)
@@ -52,8 +52,13 @@ a = @agent `Task A.`(())
 b = @agent `Task B.`(())
 c = @agent `Task C.`(())
 
-# This runs in PARALLEL
+# Homogeneous parallelism: same function, different inputs
 results = pmap([x, y, z], process)
+
+# Heterogeneous parallelism: different tasks, aggregated results
+parallel(join="all") as results:
+  research = @researcher `Find papers.`(topic)
+  analysis = @analyst `Analyze market.`(topic)
 ```
 
 ### 2.3 The Implicit Input (`it`)
@@ -213,6 +218,66 @@ Function definitions are hoisted. When called:
 
 1. Evaluate the expression (if any)
 2. Exit the current function with that value
+
+### 3.15 `parallel`
+
+Parallel blocks let you run multiple agent calls concurrently and aggregate their results. Use them when branches are independent and you want to trade latency for throughput.
+
+```vvm
+parallel(join="any", count=2, on_fail="continue") as results:
+  a = @agent1 `Task A.`(input)
+  b = @agent2 `Task B.`(input)
+  c = @agent3 `Task C.`(input)
+```
+
+When you execute a parallel block:
+
+1. **Read options**
+   - `join`: `"all"` (default), `"first"`, or `"any"`
+   - `count`: required when `join="any"` (how many successes you need)
+   - `on_fail`: `"fail-fast"` (default), `"continue"`, or `"ignore"`
+
+2. **Evaluate all branch expressions (left-to-right)**
+   - For each `name = expr`, fully evaluate `expr`
+   - Resolve agent references, render templates, evaluate inputs
+   - Store each as a pending task—do NOT spawn yet
+
+3. **Spawn all branches concurrently**
+   - Use the Task tool to spawn all subagents in a single message (parallel tool calls)
+   - In filesystem mode, allocate binding paths per Section 4.9
+
+4. **Wait according to join strategy**
+   - `"all"`: wait for every branch to complete
+   - `"first"`: wait for the first success, or all failures if none succeed
+   - `"any"`: wait for `count` successes, or all branches to complete if threshold unreachable
+
+5. **Apply failure policy**
+   - `"fail-fast"`: on first error, signal cancellation to remaining branches
+   - `"continue"`: let all branches complete; convert raised errors to error values
+   - `"ignore"`: like `"continue"`, but replace errors with `()`
+
+6. **Construct result object**
+   - Add completed branch results as named fields
+   - For `"first"`: add `_winner` field naming the successful branch (omit if all failed)
+   - For `"any"`: add `_completed` list of branches that met the threshold (may be fewer than `count` if threshold unreachable)
+
+7. **Cancel remaining branches (best-effort)**
+   - Signal cancellation to any still-running branches
+   - Late results are ignored (not added to result object)
+
+8. **Bind result to `as` variable**
+
+**Spawning branches concurrently:** Use multiple Task tool calls in a single message. The Task tool supports parallel invocations.
+
+In filesystem mode, see Section 4.9 for binding path allocation and branch execution IDs.
+
+**Join strategy determines completion:**
+
+| Strategy | Waits for | Result shape |
+|----------|-----------|--------------|
+| `"all"` | Every branch | All branches present |
+| `"first"` | First success | `_winner` names the winner |
+| `"any"` | N successes | `_completed` lists finishers |
 
 ---
 
@@ -689,6 +754,148 @@ Refs use filesystem paths (`.vvm/runs/<id>/bindings/b000001.md`). There is no UR
 
 Full prompts and responses are not logged by default. This is intentional for safety. If you need full transcripts for debugging, implement custom logging in your agents.
 
+### 4.9 Parallel Block Mechanics (Filesystem State Mode)
+
+Parallel blocks in filesystem mode use branch-specific binding paths to keep outputs separate. Each branch writes to its own file, and the VM aggregates results into a single object.
+
+#### 4.9.1 Branch Execution IDs
+
+Each parallel block gets a counter (`p001`, `p002`, ...). Each branch within a block gets a unique execution ID combining the block counter and branch name:
+
+```
+.vvm/runs/<run-id>/bindings/
+  b000001.md           # Sequential call before parallel
+  p001_research.md     # Parallel block 1, branch "research"
+  p001_analysis.md     # Parallel block 1, branch "analysis"
+  p001_review.md       # Parallel block 1, branch "review"
+  b000002.md           # Sequential call after parallel
+```
+
+This naming convention:
+- Keeps parallel branches visually grouped
+- Avoids counter collisions between sequential and parallel calls
+- Makes it clear which branches belong to which parallel block
+
+#### 4.9.2 Parallel Block Algorithm
+
+Execute these steps:
+
+1. **Increment parallel block counter**
+   - First parallel block is `p001`, second is `p002`, etc.
+
+2. **Allocate binding paths for all branches**
+   - For each branch `name`, path is: `.vvm/runs/<run-id>/bindings/p<block>_<name>.md`
+
+3. **Spawn all branches via parallel Task calls**
+   - Send a single message with multiple Task tool invocations
+   - Each task receives the binding contract with its branch-specific path
+   - Include the Ref Reading Protocol if input contains refs
+
+4. **Collect results as branches complete**
+   - Track which branches have completed
+   - Track which branches succeeded vs failed
+   - Apply failure policy as results arrive
+
+5. **Construct ref values for completed branches**
+
+   ```vvm
+   {
+     ref: ".vvm/runs/<run-id>/bindings/p001_research.md",
+     summary: "<from subagent confirmation>",
+     mime: "text/markdown"
+   }
+   ```
+
+6. **Build result object**
+   - Each branch name maps to its ref value (or error value)
+   - Add metadata per Section 3.15 step 6 (`_winner` for first, `_completed` for any)
+
+7. **Update state.md**
+   - Add parallel block entry to trace
+   - Record each branch status and binding path
+
+#### 4.9.3 Binding Contract for Parallel Branches
+
+Each branch subagent receives the standard binding contract (Section 4.5.5) with the branch-specific path:
+
+```text
+## Binding Contract
+
+Write your complete output to:
+  .vvm/runs/<run-id>/bindings/p001_research.md
+
+Then return ONLY this confirmation:
+
+  Binding written: p001_research
+  Path: .vvm/runs/<run-id>/bindings/p001_research.md
+  Summary: <1-3 sentences describing what you produced>
+
+Your chat response contains only the confirmation above.
+All substantive output goes in the file.
+```
+
+The only difference from sequential agent calls is the path format (`p<block>_<name>` vs `b<counter>`).
+
+#### 4.9.4 state.md Trace Format
+
+Parallel blocks add richer trace entries to `state.md`:
+
+```markdown
+## Execution Trace
+
+- [14:30:52] parallel block (p001)
+  - Options: join="any", count=3, on_fail="continue"
+  - Branches: research, analysis, review, validation, summary
+  - Paths allocated:
+    - research → bindings/p001_research.md
+    - analysis → bindings/p001_analysis.md
+    - review → bindings/p001_review.md
+    - validation → bindings/p001_validation.md
+    - summary → bindings/p001_summary.md
+
+- [14:30:55] Branch complete: p001_analysis (success)
+  - Summary: "Market analysis complete"
+
+- [14:30:56] Branch complete: p001_research (success)
+  - Summary: "Found 5 papers"
+
+- [14:30:57] Branch complete: p001_validation (error)
+  - Error: timeout
+
+- [14:30:58] Parallel block complete: p001
+  - Join threshold met: 2/3 (count=2 with join="any")
+  - Completed: [analysis, research]
+  - Cancelled: [review, summary]
+  - Result bound to: results
+```
+
+This trace format lets you:
+- See which branches completed in what order
+- Identify failures vs cancellations
+- Understand why a threshold was met
+
+#### 4.9.5 Cancellation and Late Results
+
+When a join threshold is met before all branches complete:
+
+1. **Signal cancellation (best-effort)**
+   - The VM cannot force-stop running subagents
+   - Use TaskStop if available, otherwise note cancellation intent
+
+2. **Handle late completions**
+   - Late results are NOT added to the result object
+   - Late binding files may still be written (subagent completed its work)
+   - Record in state.md: branch marked as "cancelled (late completion)"
+
+3. **Deterministic results**
+   - The result object contains exactly the branches that completed before the threshold
+   - `_completed` lists branches in completion order
+   - This ensures the same result regardless of cancellation support
+
+**Late completion artifacts:**
+
+When a cancelled branch completes late, its binding file still exists on disk. This is intentional—the subagent did the work, and you might want to inspect it for debugging. The file just isn't included in the result object.
+
 ---
 
 ## 5. Narration Protocol
@@ -704,9 +911,12 @@ Track execution state using emoji markers:
 | 🔄 | Loop iteration |
 | ⏳ | Waiting for subagent |
 | 🎯 | Match/choose decision |
-| ⚡ | Parallel execution |
+| ⚡ | Parallel block start |
+| 🔀 | Branch spawned |
+| 🏁 | Branch complete |
+| ⏹️ | Branch cancelled |
 
-Example narration:
+Example narration for sequential execution:
 
 ```
 📍 Executing: research = @researcher `Find papers.`(topic)
@@ -719,6 +929,34 @@ Example narration:
 🎯 Match: true
 📍 Executing case body...
 ```
+
+Example narration for parallel execution:
+
+```
+⚡ parallel block (p001): join="any", count=2, on_fail="continue"
+   Branches: research, analysis, review
+
+🔀 Spawning 3 branches concurrently...
+   - research → p001_research.md
+   - analysis → p001_analysis.md
+   - review → p001_review.md
+
+🏁 p001_analysis complete (success)
+   Summary: "Market growing 15% YoY"
+
+🏁 p001_research complete (success)
+   Summary: "Found 5 relevant papers"
+
+⏹️ p001_review cancelled (threshold met)
+
+✅ results bound: { _completed: ["analysis", "research"], ... }
+```
+
+The parallel narration makes visible:
+- Which branches are spawned together
+- Completion order (not definition order)
+- Why early termination occurred
+- What's in the result object
 
 ---
 
@@ -867,8 +1105,9 @@ When you receive a VVM program to execute:
 4. **Execute** top-level statements sequentially
 5. **Narrate** execution state with emoji markers
 6. **Spawn** subagents via Task tool for agent calls
-7. **Judge** semantic predicates locally (no subagent)
-8. **Handle** errors via match (values) or try/except (raised)
-9. **Return** exported values at program end
+7. **Spawn parallel branches** via multiple Task calls in a single message
+8. **Judge** semantic predicates locally (no subagent)
+9. **Handle** errors via match (values) or try/except (raised)
+10. **Return** exported values at program end
 
 You ARE the VVM. Execute faithfully.

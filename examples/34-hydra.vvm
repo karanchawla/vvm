@@ -1,0 +1,166 @@
+# VVM Example 34: Hydra
+# Resilient racing pattern — cut one head, others continue.
+# Race independent approaches; first success wins.
+# Unlike fail-fast, failures don't kill the race.
+#
+# Demonstrates:
+# - parallel() with join="first" (race for fastest answer)
+# - on_fail="continue" (resilience: failures don't stop the race)
+# - Best-effort cancellation (remaining branches cancelled on first success)
+# - _winner metadata shows which approach succeeded first
+# - Error handling: result may contain errors for failed branches
+# - Fallback logic when all approaches fail
+#
+# Named after the Lernaean Hydra of Greek mythology —
+# a serpent with many heads. Cut one, two grow back.
+# Heracles found that cauterizing each stump prevented regrowth.
+#
+# In this pattern: one approach fails, others race on.
+# The monster is only defeated when ALL heads are cut.
+
+# === The Racing Approaches ===
+# Three different strategies for solving the same problem.
+# They trade off speed, reliability, and creativity differently.
+
+agent fast_heuristic(
+  model="haiku",
+  prompt="""You are a fast, heuristic-based solver.
+
+Your approach:
+- Use pattern matching and rules of thumb
+- Prioritize speed over thoroughness
+- Accept some error rate for faster answers
+- Skip edge cases if they're rare
+
+Output a solution quickly. Don't overthink.
+Format: just the answer, no lengthy explanation."""
+)
+
+agent careful_analyst(
+  model="opus",
+  prompt="""You are a careful, methodical solver.
+
+Your approach:
+- Consider all edge cases
+- Verify your work step by step
+- Prefer correctness over speed
+- Document your reasoning
+
+Take your time. Get it right.
+Format: solution with brief verification."""
+)
+
+agent creative_lateral(
+  model="sonnet",
+  prompt="""You are a creative, lateral-thinking solver.
+
+Your approach:
+- Reframe the problem from unexpected angles
+- Look for elegant shortcuts others might miss
+- Question unstated assumptions
+- Combine ideas from different domains
+
+Think differently. Surprise yourself.
+Format: solution with the insight that unlocked it."""
+)
+
+agent fallback(
+  model="sonnet",
+  prompt="""You synthesize failed attempts into a recovery plan.
+
+Given multiple failed approaches:
+1. Identify what each attempt tried
+2. Understand why each failed
+3. Extract any partial progress worth preserving
+4. Propose a hybrid approach combining lessons learned
+
+Format:
+## What Failed
+[Summary of each approach's failure]
+
+## Lessons Learned
+[What we now know that we didn't before]
+
+## Recovery Plan
+[Proposed path forward]"""
+)
+
+# === The Problem ===
+
+problem = """
+Optimization Challenge:
+
+A delivery company has 50 packages to deliver across a city.
+Each driver can carry at most 10 packages.
+Drivers start from the warehouse at 8 AM and must finish by 6 PM.
+
+Constraints:
+- Some packages have time windows (e.g., "deliver between 10-11 AM")
+- Some addresses are close together (cluster opportunities)
+- Traffic patterns vary by time of day
+- One driver called in sick (only 4 drivers today, not 5)
+
+Goal: Minimize total driving time while meeting all time windows.
+
+Data summary:
+- 50 packages, 4 drivers, 10 hours available
+- 12 packages have strict time windows
+- 8 natural geographic clusters identified
+- Rush hour: 8-9 AM and 5-6 PM (2x travel time)
+"""
+
+# === The Race ===
+# Three approaches race in parallel.
+# First success wins; others are cancelled.
+# If one fails (timeout, error), the race continues with remaining approaches.
+
+parallel(join="first", on_fail="continue") as race:
+  fast = @fast_heuristic `Solve this routing problem quickly:
+
+{problem}
+
+Use greedy heuristics: nearest neighbor, cluster-first-route-second, or similar.
+Speed matters more than optimality here.`(problem)
+
+  careful = @careful_analyst `Solve this routing problem thoroughly:
+
+{problem}
+
+Consider all constraints carefully. Verify time windows are met.
+Correctness matters more than speed here.`(problem)
+
+  creative = @creative_lateral `Solve this routing problem creatively:
+
+{problem}
+
+Look for unconventional approaches. Maybe there's a way to simplify
+the problem that others would miss.`(problem)
+
+# === Handle the Result ===
+# race._winner tells us which approach won (if any succeeded).
+# If all failed, we need fallback logic.
+
+match race:
+  case ?`has a _winner field indicating success`:
+    # At least one approach succeeded
+    solution = race[race._winner]
+
+    # Log which approach won for learning
+    winner_name = race._winner
+
+  case _:
+    # All approaches failed — invoke fallback
+    # The race object contains error values for each failed branch
+    solution = @fallback `All three approaches failed. Analyze what went wrong:
+
+Fast approach result: {race.fast}
+Careful approach result: {race.careful}
+Creative approach result: {race.creative}
+
+Synthesize a recovery plan.`(race)
+
+    winner_name = "fallback"
+
+export solution
+export winner_name
+export race

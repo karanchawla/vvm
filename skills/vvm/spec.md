@@ -1212,6 +1212,234 @@ The core language is sequential. The runtime MUST NOT infer parallelism between 
 
 Some stdlib helpers (currently `pmap`) may evaluate work concurrently as an explicit opt-in. Programs that use such helpers should only parallelize independent work and must tolerate interleaving.
 
+### 12.5 Parallel Blocks
+
+Sometimes you need to run multiple independent tasks concurrently—racing approaches to take the fastest answer, gathering votes from multiple evaluators, or fetching data from several sources at once. Parallel blocks let you express these patterns directly.
+
+```vvm
+parallel() as results:
+  research = @researcher `Find papers.`(topic)
+  analysis = @analyst `Analyze market.`(topic)
+
+# Both run concurrently; results contains both values when done
+```
+
+#### 12.5.1 Syntax
+
+```vvm
+parallel(join="...", count=N, on_fail="...") as results:
+  branch1 = expr1
+  branch2 = expr2
+  ...
+```
+
+Options:
+- `join`: `"all"` (default) | `"first"` | `"any"`
+- `count`: how many successes to wait for (only with `join="any"`)
+- `on_fail`: `"fail-fast"` (default) | `"continue"` | `"ignore"`
+
+The `as results` clause binds the result object to the identifier you choose.
+
+Each branch is a named assignment (`name = expr`). You give each branch a name so you can access its result in the result object.
+
+#### 12.5.2 Execution Order
+
+When you execute a parallel block:
+
+1. **Evaluate options**
+   - Read `join` (default: `"all"`), `count`, and `on_fail` (default: `"fail-fast"`)
+   - If `join="any"`, `count` specifies how many successes you need
+
+2. **Evaluate all branch expressions (left-to-right)**
+   - For each `name = expr`, evaluate `expr` fully—resolve agents, render templates, evaluate inputs
+   - Store each as a pending task
+   - This happens sequentially before any concurrent execution begins
+
+3. **Spawn all branches concurrently**
+   - Assign each branch an execution ID: `p<block>_<name>` (e.g., `p001_research`)
+   - In filesystem state mode, allocate a binding path per branch
+
+4. **Wait according to join strategy**
+   - `"all"`: wait for every branch to complete
+   - `"first"`: wait for the first success (or all failures if none succeed)
+   - `"any"`: wait for `count` successes (or all branches to complete if threshold unreachable)
+
+5. **Apply the failure policy**
+   - `"fail-fast"`: on first error, cancel remaining branches and return
+   - `"continue"`: let all branches complete; convert raised errors to error values
+   - `"ignore"`: like `"continue"`, but replace errors with `()`
+
+6. **Construct the result object**
+   - Include completed branch results as named fields
+   - Add `_winner` (for `"first"`) or `_completed` (for `"any"`) metadata
+
+7. **Cancel remaining branches (best-effort)**
+   - Signal cancellation to any still-running branches
+   - Late results are ignored
+
+#### 12.5.3 Result Object Shape
+
+The result object has a named field for each completed branch:
+
+```vvm
+# join="all" — you get all results
+{ a: <value|error>, b: <value|error>, c: <value|error> }
+
+# join="first" — first success wins, _winner tells you which
+{ _winner: "a", a: <value> }
+
+# join="any" with count=2 — first 2 successes, _completed lists them
+{ _completed: ["a", "c"], a: <value>, c: <value>, b: <error> }
+```
+
+Metadata fields:
+- `_winner`: present with `join="first"`. Tells you which branch succeeded first.
+- `_completed`: present with `join="any"`. Lists the branches that succeeded (in completion order).
+
+Edge cases:
+- If `join="first"` and all branches fail, the result contains all error values but no `_winner` field.
+- If `join="any"` and fewer than `count` branches succeed, `_completed` lists those that did succeed (may be empty). Check `len(_completed) < count` to detect threshold failure.
+
+#### 12.5.4 Join Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `"all"` (default) | Wait for all branches to complete; return all results |
+| `"first"` | Return when first branch succeeds; cancel rest (best-effort) |
+| `"any"` | Return when `count` branches succeed; cancel rest (best-effort) |
+
+#### 12.5.5 Failure Policies
+
+| Policy | Behavior |
+|--------|----------|
+| `"fail-fast"` (default) | First error stops the block; cancel remaining branches |
+| `"continue"` | All branches complete; raised errors become error values in result |
+| `"ignore"` | Like `"continue"`, but replace errors with `()` |
+
+With `"continue"`, raised errors (from `raise` or runtime failures) become error values of kind `"thrown"` in the result object. The parallel block itself doesn't raise—you handle failures by inspecting the result.
+
+#### 12.5.6 Cancellation (Best-Effort)
+
+Cancellation is best-effort for portability across hosts. When you reach a join threshold:
+
+1. **Signal cancellation** to any still-running branches
+2. **If the host can't cancel**, the VM continues but ignores late results
+3. **Late results stay out** of the result object
+4. **In filesystem mode**, late branches may still write to their binding files (the files exist but aren't in your result)
+
+This gives you deterministic results regardless of how the host handles cancellation.
+
+#### 12.5.7 Filesystem State Mode
+
+When you run with `--state=filesystem`, each parallel branch:
+
+1. **Gets a unique execution ID**: `p<block>_<name>` (e.g., `p001_research`)
+2. **Writes output to**: `.vvm/runs/<run-id>/bindings/p<block>_<name>.md`
+3. **Returns a ref value** (not the full output) to the parallel block
+
+Your result object contains ref values pointing to each branch's output:
+
+```vvm
+parallel() as results:
+  research = @researcher `Find papers.`(topic)
+  analysis = @analyst `Analyze market.`(topic)
+
+# results = {
+#   research: { ref: ".vvm/runs/.../p001_research.md", summary: "Found 5 papers..." },
+#   analysis: { ref: ".vvm/runs/.../p001_analysis.md", summary: "Market analysis..." }
+# }
+```
+
+This keeps your context bounded even when branches produce large outputs.
+
+#### 12.5.8 When to Use Parallel Blocks
+
+**Use parallel blocks when:**
+- Tasks are independent (no data dependencies between branches)
+- You want to race approaches and take the fastest
+- You need redundancy (N-of-M voting, graceful degradation)
+- Gathering data from multiple sources simultaneously
+
+**Use `pmap` instead when:**
+- You're applying the same function to a list of items
+- The structure is homogeneous (same operation, different inputs)
+
+#### 12.5.9 Examples
+
+**Basic parallel (all branches):**
+
+```vvm
+parallel() as results:
+  papers = @researcher `Find papers on {topic}.`(topic)
+  market = @analyst `Analyze market for {topic}.`(topic)
+  competitors = @analyst `Identify competitors in {topic}.`(topic)
+
+# All three run concurrently; results contains all three values
+report = @writer `Synthesize findings.`(results)
+```
+
+**Race for fastest answer (first):**
+
+```vvm
+parallel(join="first") as race:
+  quick = @fast_model `Answer quickly.`(question)
+  detailed = @slow_model `Answer thoroughly.`(question)
+
+# race._winner tells which branch won
+answer = race[race._winner]
+```
+
+**Majority voting (any with count):**
+
+```vvm
+parallel(join="any", count=3, on_fail="continue") as votes:
+  v1 = @evaluator `Judge this proposal.`(proposal)
+  v2 = @evaluator `Judge this proposal.`(proposal)
+  v3 = @evaluator `Judge this proposal.`(proposal)
+  v4 = @evaluator `Judge this proposal.`(proposal)
+  v5 = @evaluator `Judge this proposal.`(proposal)
+
+# Proceeds when 3 votes are in; votes._completed lists which 3
+decision = @synthesizer `Aggregate the votes.`(votes)
+```
+
+**Good vs Bad:**
+
+```vvm
+# Good: Use parallel for independent work, then synthesize
+parallel() as research:
+  papers = @researcher `Find papers.`(topic)
+  market = @analyst `Analyze market.`(topic)
+synthesis = @writer `Combine findings.`(research)
+
+# Bad: Using parallel when there are dependencies
+# parallel() as results:
+#   data = @fetcher `Get data.`(source)
+#   analysis = @analyst `Analyze.`(data)  # Depends on data! Won't work.
+```
+
+#### 12.5.10 Memory Safety in Parallel Branches
+
+When parallel branches share an agent with `memory=...`, you risk lock contention:
+
+```vvm
+# Risky: All branches try to acquire the same memory lock
+parallel() as results:
+  a = @helper `Task A.`(x)  # memory_mode="continue" by default
+  b = @helper `Task B.`(y)  # blocked waiting for a's lock
+```
+
+Use `memory_mode="fresh"` for parallel workers, then merge in a sequential step:
+
+```vvm
+# Safe: Each branch runs stateless; merge step updates memory
+parallel() as results:
+  a = @helper `Task A.`(x, memory_mode="fresh")
+  b = @helper `Task B.`(y, memory_mode="fresh")
+
+summary = @helper `Synthesize.`(results)  # This one uses memory
+```
+
 ---
 
 ## 13. Error Handling
@@ -1460,7 +1688,7 @@ Runtimes SHOULD report a location (line/column) when practical.
 
 These identifiers MUST NOT be used as user-defined names (variables, functions, agents, parameters, import aliases):
 
-`import`, `from`, `as`, `export`, `agent`, `def`, `return`, `match`, `case`, `choose`, `by`, `option`, `constrain`, `require`, `with`, `input`, `if`, `elif`, `else`, `while`, `for`, `in`, `try`, `except`, `finally`, `raise`, `pass`, `break`, `continue`, `and`, `or`, `not`, `it`, `true`, `false`, `error`
+`import`, `from`, `as`, `export`, `agent`, `def`, `return`, `match`, `case`, `choose`, `by`, `option`, `constrain`, `require`, `with`, `input`, `if`, `elif`, `else`, `while`, `for`, `in`, `parallel`, `try`, `except`, `finally`, `raise`, `pass`, `break`, `continue`, `and`, `or`, `not`, `it`, `true`, `false`, `error`
 
 #### 15.2.2 Error codes (blocking)
 
@@ -1488,6 +1716,13 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | E081  | `break`/`continue` used outside a loop |
 | E082  | `try:` without `except` or `finally` |
 | E090  | Module import/export cannot be resolved (missing module or missing exported name) |
+| E100  | Duplicate branch name in parallel block |
+| E101  | Invalid `join` value (must be `"all"`, `"first"`, or `"any"`) |
+| E102  | `count` option only valid with `join="any"` |
+| E103  | `count` must be between 1 and number of branches |
+| E104  | Invalid `on_fail` value (must be `"fail-fast"`, `"continue"`, or `"ignore"`) |
+| E105  | Empty parallel block (no branches) |
+| E106  | Anonymous branch in parallel block (all branches must be named) |
 
 #### 15.2.3 Warning codes (non-blocking)
 
@@ -1499,6 +1734,8 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | W020  | Unknown agent configuration key (host-defined; portability risk) |
 | W030  | Unused variable (best-effort) |
 | W031  | Exported value never assigned (may fail at runtime) |
+| W040  | Parallel branches may share memory key without `memory_mode="fresh"` |
+| W041  | `join="first"` with single branch (no race possible) |
 
 #### 15.2.4 Runtime errors vs validation errors
 
@@ -1548,6 +1785,7 @@ stmt           = comment
                | if_stmt
                | while_stmt
                | for_stmt
+               | parallel_stmt
                | try_stmt
                | raise_stmt
                | pass_stmt
@@ -1586,6 +1824,13 @@ require_stmt   = "require" sem_pred_case newline ;
 if_stmt        = "if" expr ":" newline INDENT stmt* DEDENT [ "elif" expr ":" newline INDENT stmt* DEDENT ]* [ "else" ":" newline INDENT stmt* DEDENT ] ;
 while_stmt     = "while" expr ":" newline INDENT stmt* DEDENT ;
 for_stmt       = "for" ident "in" expr ":" newline INDENT stmt* DEDENT ;
+
+parallel_stmt  = "parallel" "(" [parallel_opts] ")" "as" ident ":" newline INDENT branch_stmt+ DEDENT ;
+parallel_opts  = parallel_opt ("," parallel_opt)* [","] ;
+parallel_opt   = "join" "=" string
+               | "count" "=" number
+               | "on_fail" "=" string ;
+branch_stmt    = ident "=" expr newline ;
 
 	try_stmt       = "try" ":" newline INDENT stmt* DEDENT [except_block] [finally_block] ;
 	except_block   = "except" "as" ident ":" newline INDENT stmt* DEDENT ;

@@ -122,6 +122,144 @@ report = @synthesizer `Combine these analyses into a unified report.`(analyses)
 
 ---
 
+## Parallel Block Patterns
+
+These patterns use `parallel()` blocks for heterogeneous concurrent work—different tasks running simultaneously, not the same function on different inputs.
+
+### Heterogeneous Parallel Work
+
+**Problem:** Different independent tasks need to run concurrently.
+
+**Solution:** Use `parallel()` blocks for heterogeneous concurrent work.
+
+```vvm
+agent researcher(model="sonnet")
+agent analyst(model="sonnet")
+agent reviewer(model="sonnet")
+agent synthesizer(model="opus")
+
+parallel() as results:
+  papers = @researcher `Find relevant papers.`(topic)
+  market = @analyst `Analyze market trends.`(topic)
+  risks = @reviewer `Identify potential risks.`(topic)
+
+# All three run concurrently; results contains all values
+report = @synthesizer `Combine findings.`(results)
+```
+
+**When to use:**
+- Tasks are independent but different (not homogeneous like pmap)
+- You need all results before proceeding
+- Tasks don't share memory state
+
+---
+
+### Racing Approaches
+
+**Problem:** Multiple ways to solve a problem; you want the fastest answer.
+
+**Solution:** Use `join="first"` to race approaches.
+
+```vvm
+agent heuristic(model="haiku")
+agent solver(model="sonnet")
+agent lateral(model="sonnet")
+
+parallel(join="first", on_fail="continue") as race:
+  quick = @heuristic `Fast heuristic solution.`(problem)
+  thorough = @solver `Exhaustive search.`(problem)
+  creative = @lateral `Unconventional approach.`(problem)
+
+# race._winner tells you which approach won
+solution = race[race._winner]
+```
+
+**When to use:**
+- Multiple valid approaches with different speed/quality trade-offs
+- Any correct answer is acceptable
+- You want minimum latency
+
+---
+
+### Ensemble Voting (N-of-M)
+
+**Problem:** Need consensus from multiple independent evaluators.
+
+**Solution:** Use `join="any"` with count for N-of-M patterns.
+
+```vvm
+agent evaluator(model="sonnet")
+agent synthesizer(model="opus")
+
+parallel(join="any", count=3, on_fail="continue") as votes:
+  v1 = @evaluator `Judge proposal.`(proposal, memory_mode="fresh")
+  v2 = @evaluator `Judge proposal.`(proposal, memory_mode="fresh")
+  v3 = @evaluator `Judge proposal.`(proposal, memory_mode="fresh")
+  v4 = @evaluator `Judge proposal.`(proposal, memory_mode="fresh")
+  v5 = @evaluator `Judge proposal.`(proposal, memory_mode="fresh")
+
+# Proceeds when 3 votes are in; votes._completed lists which 3
+decision = @synthesizer `Aggregate votes.`(votes)
+```
+
+**When to use:**
+- Need redundancy or consensus
+- Individual evaluators may fail or timeout
+- Want to proceed as soon as threshold is met
+
+---
+
+### Parallel with Fresh Memory
+
+**Problem:** Parallel branches using memory-enabled agents cause lock contention.
+
+**Solution:** Use `memory_mode="fresh"` for parallel workers.
+
+```vvm
+agent helper(model="sonnet", memory={ scope: "project", key: "team" })
+
+parallel() as results:
+  a = @helper `Process item A.`(itemA, memory_mode="fresh")
+  b = @helper `Process item B.`(itemB, memory_mode="fresh")
+  c = @helper `Process item C.`(itemC, memory_mode="fresh")
+
+# Each branch runs stateless; no lock contention
+```
+
+**When to use:**
+- Agent has memory configured
+- Branches don't need to write to memory
+- You'll merge/update memory in a sequential step
+
+---
+
+### Parallel Merge (Fresh Work + Sequential Update)
+
+**Problem:** Parallel work needs to eventually update shared memory.
+
+**Solution:** Parallel workers run fresh; single sequential step merges and updates memory.
+
+```vvm
+agent worker(model="sonnet", memory={ scope: "project", key: "research" })
+
+# Phase 1: Parallel work (fresh memory)
+parallel() as analyses:
+  tech = @worker `Analyze technical aspects.`(topic, memory_mode="fresh")
+  market = @worker `Analyze market aspects.`(topic, memory_mode="fresh")
+  legal = @worker `Analyze legal aspects.`(topic, memory_mode="fresh")
+
+# Phase 2: Sequential merge (uses memory)
+synthesis = @worker `Synthesize all analyses and update research memory.`(analyses)
+# This single call can safely read and write memory
+```
+
+**Why this works:**
+- Parallel phase: No lock contention (all branches fresh)
+- Sequential phase: Single writer updates memory
+- Memory ledger shows clean single update, not interleaved writes
+
+---
+
 ### Reusable Functions
 
 **Problem:** Same workflow pattern repeated in multiple places.
@@ -440,6 +578,11 @@ export report
 | Pipeline Composition | Multi-stage transformations |
 | Parallel Independent Work | Independent tasks, `pmap` |
 | Fan-Out Fan-In | Multiple perspectives + aggregation |
+| Heterogeneous Parallel Work | Different independent tasks, `parallel()` |
+| Racing Approaches | Multiple solutions, want fastest |
+| Ensemble Voting | Consensus/redundancy needed |
+| Parallel with Fresh Memory | Memory agent in parallel branches |
+| Parallel Merge | Parallel work + sequential memory update |
 | Reusable Functions | Repeated workflow patterns |
 | Model Tiering | Optimizing cost/capability |
 | Early Termination | Avoiding unnecessary work |
