@@ -1,0 +1,17 @@
+# critique.vvm
+# Critiques an argument by finding its weaknesses.
+
+input argument: "The argument to critique"
+
+agent critic(
+  model="sonnet",
+  prompt="You find weaknesses in arguments. Be incisive but constructive."
+)
+
+critique = @critic `Analyze this argument and identify its weaknesses:
+
+{argument}
+
+Provide 3 counter-points.`(argument)
+
+export critique

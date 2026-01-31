@@ -1,0 +1,57 @@
+# VVM Example 36: Module Inputs
+# Demonstrates input declarations for parameterized modules.
+#
+# This module can be:
+# 1. Run directly with CLI: vvm run 36-inputs.vvm --input topic="AI"
+# 2. Called from another module (see Sprint 2)
+#
+# Demonstrates:
+# - Required inputs with description
+# - Optional inputs with defaults
+# - Inputs become bound variables
+#
+# Pattern: Declare what you need, let the caller provide it.
+
+# === Inputs ===
+# Inputs must appear before any executable statements.
+# They become bound variables available throughout the program.
+
+input topic: "The topic to research"
+input depth: "Research depth (shallow, medium, deep)" = "medium"
+
+# === Agent Definitions ===
+# Agents are local to this module — they cannot be exported.
+
+agent researcher(
+  model="sonnet",
+  prompt="""You research topics thoroughly.
+
+Adjust depth based on instructions:
+- shallow: Quick overview, key points only
+- medium: Balanced coverage with supporting details
+- deep: Comprehensive analysis with sources"""
+)
+
+agent summarizer(
+  model="haiku",
+  prompt="Create a one-sentence summary capturing the essence."
+)
+
+# === Workflow Logic ===
+# Use the input variables in agent calls.
+
+report = @researcher `Research {topic} at {depth} depth.
+
+Produce a structured report with:
+1. Key findings
+2. Supporting evidence
+3. Open questions`(pack(topic, depth))
+
+summary = @summarizer `Summarize this research in one sentence.`(report)
+
+# === Exports ===
+# Only values can be exported. When this module is called,
+# the result object will contain: { report: <ref>, summary: <ref> }
+
+export report
+export summary

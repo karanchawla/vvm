@@ -281,6 +281,109 @@ In filesystem mode, see Section 4.9 for binding path allocation and branch execu
 
 ---
 
+### 3.16 `input` Provisioning
+
+When executing a program with declared inputs, you must provision values before execution begins.
+
+**Top-level execution (run directly):**
+
+1. Parse input declarations from the program
+2. For each input:
+   - Check if host provides a value (CLI flag, environment)
+   - If not provided and required, prompt the user with the input's description
+   - If optional and not provided, use the default value
+   - Bind the value to the input name
+3. If any required input cannot be provisioned, return `error(kind="missing_input", name="...")`
+4. Proceed with execution
+
+**Host provisioning mechanisms:**
+- CLI: `--input topic="AI safety" --input depth="deep"`
+- Interactive: Prompt user with input description
+- API: Structured input object `{ topic: "...", depth: "..." }`
+
+**Recording in state.md (filesystem mode):**
+
+```markdown
+## Inputs
+
+| Name | Value | Source |
+|------|-------|--------|
+| topic | AI safety | cli |
+| depth | medium | default |
+```
+
+### 3.17 Module Calls
+
+When a module is imported with `* as name`, it becomes callable. Calling it executes the module with the provided inputs and returns its exports.
+
+```vvm
+from "./lib/research.vvm" import * as research
+
+result = research(topic="AI safety", depth="deep")
+report = result.report
+```
+
+#### Module Call Algorithm
+
+When you encounter a module call `name(arg1=val1, arg2=val2, ...)`:
+
+1. **Resolve the module**
+   - Look up `name` in the current environment
+   - Verify it references an imported module (not a function)
+
+2. **Validate arguments**
+   - For each argument, check it matches a declared input in the module
+   - If an argument doesn't match any input: return `error(kind="unknown_input", name="...")`
+   - For each required input not provided: return `error(kind="missing_input", name="...")`
+   - Apply default values for optional inputs not provided
+
+3. **Create module execution context**
+   - In filesystem mode, create subdirectory: `.vvm/runs/<run-id>/modules/<name>--<hash>/`
+   - Initialize bindings directory and state.md for the module
+
+4. **Execute module body**
+   - Bind input values to their declared names
+   - Execute statements sequentially
+   - Track exports as they are declared
+
+5. **Return result object**
+   - Collect all exported values into a result object
+   - If an export is a ref, pass it through unchanged
+   - If execution raised an error: return `error(kind="module_failed", module="...", error=...)`
+
+#### Binding Directory Structure
+
+When a called module executes in filesystem mode:
+
+```
+.vvm/runs/<run-id>/
+  bindings/              # Parent module's bindings
+  state.md               # Parent module's state
+  modules/
+    research--a7b3c9/    # Called module
+      bindings/          # Module's bindings
+        b001.md
+        b002.md
+      state.md           # Module's state
+```
+
+The hash suffix (`a7b3c9`) is derived from the call arguments to ensure unique directories for different invocations.
+
+#### Ref Resolution
+
+Refs created by the called module point to its bindings directory:
+
+```vvm
+# In main.vvm
+result = research(topic="AI")
+# result.report might be:
+# { ref: ".vvm/runs/abc123/modules/research--a7b3c9/bindings/b001.md", ... }
+```
+
+The caller receives refs unchanged. If the caller passes a ref to another agent, that agent can read the file at the ref path.
+
+---
+
 ## 4. Agent Call Mechanics
 
 ### 4.1 Input Passing
@@ -389,6 +492,13 @@ Started: <ISO timestamp>
 Updated: <ISO timestamp>
 Status: running | completed | failed
 
+## Inputs
+
+| Name | Value | Source |
+|------|-------|--------|
+| topic | AI safety | cli |
+| depth | medium | default |
+
 ## Binding Index
 
 | Name | Ref Path | Summary |
@@ -423,7 +533,9 @@ When you start executing a program in filesystem state mode:
 3. Create the bindings directory: `.vvm/runs/<run-id>/bindings/`
 4. Copy the entry program to: `.vvm/runs/<run-id>/program.vvm`
 5. Initialize `state.md` with metadata header (status: running)
-6. Initialize the binding counter to 0
+6. Parse input declarations and provision values (see Section 3.16)
+7. Record inputs in `state.md` with name, value, and source
+8. Initialize the binding counter to 0
 
 Example narration:
 
@@ -633,6 +745,12 @@ Example state.md:
 # VVM Run: 20260127-143052-a7f3b2
 
 Status: completed
+
+## Inputs
+
+| Name | Value | Source |
+|------|-------|--------|
+| topic | AI | cli |
 
 ## Binding Index
 

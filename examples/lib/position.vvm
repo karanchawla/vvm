@@ -1,0 +1,16 @@
+# position.vvm
+# Generates an argument for or against a topic.
+
+input topic: "The debate topic"
+input stance: "The position to argue (for/against)"
+
+agent arguer(
+  model="sonnet",
+  prompt="You construct compelling arguments. Be persuasive but fair."
+)
+
+argument = @arguer `Argue {stance} the following topic: {topic}
+
+Present 3 strong points supporting your position.`(pack(topic, stance))
+
+export argument

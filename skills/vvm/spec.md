@@ -1126,20 +1126,33 @@ Skill imports do not introduce value bindings (there is no identifier created). 
 
 ### 11.3 Module imports
 
+Import specific values from another module:
+
 ```vvm
-from "./lib/research.vvm" import deep_research
-from "./lib/research.vvm" import @researcher as researcher_agent
+from "./lib/research.vvm" import report
+from "./lib/research.vvm" import summary as research_summary
 ```
 
-Module imports are processed before execution.
+Or import the entire module as a callable:
+
+```vvm
+from "./lib/research.vvm" import * as research
+
+result = research(topic="AI safety")
+report = result.report
+```
+
+When imported with `* as name`, the module becomes a callable value. Calling it executes the module with the provided inputs and returns an object containing all exported values (see Section 11.6).
+
+Module imports are processed before execution. Only **values** can be imported — agents are local to their defining module.
 
 Semantics:
 - If the import string starts with `./` or `../`, it is resolved relative to the directory of the importing module file (not the process CWD).
 - Otherwise, the import string is interpreted as a host-defined module identifier (future: registries); MVP runtimes may restrict this to local file paths only.
 - After resolution, the runtime computes a canonical module identity (lexically normalize `.`/`..` segments). Importing the same canonical module multiple times refers to the same module.
-- A module’s exports are declared by `export ...` statements in that module.
-- Importing `name` imports a value/function export into the value namespace.
-- Importing `@name` imports an agent export into the agent namespace (accessible as `@alias`).
+- A module's exports are declared by `export ...` statements in that module.
+- Importing `name` imports a value/function export.
+- Importing `* as name` binds the module itself as a callable.
 - If the referenced module or exported name cannot be resolved, it is a validation error.
 
 #### Module resolution procedure (normative)
@@ -1154,21 +1167,137 @@ When encountering `from "path" import ...`:
 
 4. **Read and parse module**: If file exists, use the Read tool to load the file contents, then parse as a VVM module. Syntax errors are reported with the imported file's path.
 
-5. **Resolve exports**: After parsing, verify the requested export (`name` or `@name`) exists in the module's export list. If not found, emit E090 with message: `Export '{name}' not found in module '{path}'`.
+5. **Resolve exports**: After parsing, verify the requested export exists in the module's export list. If not found, emit E090 with message: `Export '{name}' not found in module '{path}'`.
 
 ### 11.4 Exports
 
 ```vvm
 export report
-export deep_research
-export @researcher
+export summary
 ```
 
-Exports define the program’s public API. For a script-style program, a runtime should:
-- execute top-level control flow (the script)
-- at the end of execution, return the exported **values** (exported agents are configuration, not run targets)
+Exports define the program's public API. Only **values** can be exported — agents are local to their module.
+
+**Why agents cannot be exported:**
+- Agents are implementation details
+- Callers should interact with modules via their exported values
+- This eliminates namespace complexity between `@agent` and values
+
+For a script-style program, a runtime should:
+- Execute top-level control flow (the script)
+- At the end of execution, return the exported values
 
 Export declarations are hoisted at module load time. Exporting the same name multiple times is allowed and has no additional effect.
+
+---
+
+### 11.5 Input Declarations
+
+When you want a module to be reusable with different values, you declare inputs. Inputs let callers provide values at invocation time, making your module callable like a function.
+
+```vvm
+input topic: "The topic to research"
+input depth: "Research depth" = "medium"
+
+agent researcher(model="sonnet", prompt="Research expert.")
+
+report = @researcher `Research {topic} at {depth} level.`(pack(topic, depth))
+
+export report
+```
+
+In this example, `topic` is required (caller must provide it) and `depth` is optional (defaults to `"medium"`). When you run this module, you provide inputs via CLI flags or when calling it from another module.
+
+#### 11.5.1 Syntax
+
+**Required input** — caller must provide a value:
+```vvm
+input topic: "The topic to research"
+```
+
+**Optional input** — uses default if not provided:
+```vvm
+input depth = "medium"
+input depth: "Research depth" = "medium"
+```
+
+The string after the colon is documentation describing what the input represents.
+
+#### 11.5.2 Semantics
+
+Input declarations must appear at module scope, before any executable statements. When you declare an input, the identifier becomes a bound variable you can use throughout the program. Input names must be unique within a module.
+
+#### 11.5.3 Execution
+
+When run directly, inputs are provisioned by the host (CLI flags, interactive prompts). When called as a module, inputs are bound from the caller's arguments. Missing required inputs cause an `error(kind="missing_input", name="...")`.
+
+---
+
+### 11.6 Module Calls
+
+When you import a module with `* as name`, it becomes callable. Calling it executes the module with the provided inputs and returns its exported values.
+
+```vvm
+from "./lib/research.vvm" import * as research
+
+result = research(topic="AI safety", depth="deep")
+report = result.report
+summary = result.summary
+```
+
+#### 11.6.1 Call Syntax
+
+Module calls use keyword arguments matching the module's input declarations:
+
+```vvm
+result = module_name(input1="value1", input2="value2")
+```
+
+All arguments must be keyword arguments. Positional arguments are not supported for module calls.
+
+#### 11.6.2 Result Object
+
+A module call returns an object containing all values exported by the module:
+
+```vvm
+result = research(topic="AI")
+result.report    # The exported 'report' value
+result.summary   # The exported 'summary' value
+```
+
+If an exported value is a ref (from an agent call), the ref passes through unchanged. The caller receives the same ref object the module created.
+
+#### 11.6.3 Errors
+
+Module calls can produce these runtime errors:
+
+| Error Kind | Condition |
+|------------|-----------|
+| `missing_input` | Required input not provided |
+| `unknown_input` | Argument doesn't match any declared input |
+| `module_failed` | Module execution raised an error |
+
+```vvm
+# Error: missing_input (topic is required)
+result = research()
+
+# Error: unknown_input (no input named 'unknown')
+result = research(topic="AI", unknown="value")
+```
+
+Errors from module calls can be handled with `match`:
+
+```vvm
+result = research(topic="AI")
+
+match result:
+  case error(kind="missing_input"):
+    handle_missing(result)
+  case error(kind="module_failed"):
+    handle_failure(result)
+  case _:
+    use(result.report)
+```
 
 ---
 
@@ -1723,6 +1852,9 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | E104  | Invalid `on_fail` value (must be `"fail-fast"`, `"continue"`, or `"ignore"`) |
 | E105  | Empty parallel block (no branches) |
 | E106  | Anonymous branch in parallel block (all branches must be named) |
+| E110  | Input declared after executable statement |
+| E111  | Duplicate input name `{name}` |
+| E112  | Attempt to export an agent (`export @agent` not allowed) |
 
 #### 15.2.3 Warning codes (non-blocking)
 
@@ -1736,6 +1868,8 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | W031  | Exported value never assigned (may fail at runtime) |
 | W040  | Parallel branches may share memory key without `memory_mode="fresh"` |
 | W041  | `join="first"` with single branch (no race possible) |
+| W050  | Input description is empty |
+| W051  | Module has inputs but no exports |
 
 #### 15.2.4 Runtime errors vs validation errors
 
@@ -1756,6 +1890,37 @@ E004 line 12 col 18: unterminated template literal
                    ^
 ```
 
+### 15.3 Runtime Error Kinds
+
+Runtime errors occur during execution and are represented as error values. These can be handled with `match` or propagate as raised errors.
+
+| Kind | Condition | Data |
+|------|-----------|------|
+| `timeout` | Agent call exceeded timeout | `{elapsed: ms}` |
+| `rejected` | Model refused to complete | `{reason: string}` |
+| `binding_failed` | Agent failed to write binding | — |
+| `constraint_violation` | Constraint requirements not met | `{violations: [...]}` |
+| `thrown` | User code raised an error | `{message: string}` |
+| `missing_input` | Required module input not provided | `{name: string}` |
+| `unknown_input` | Argument doesn't match any input | `{name: string}` |
+| `module_failed` | Called module raised an error | `{module: path, error: ...}` |
+
+Example handling:
+
+```vvm
+result = research(topic="AI")
+
+match result:
+  case error(kind="missing_input"):
+    log("Missing: " + result.data.name)
+  case error(kind="module_failed"):
+    log("Module error: " + result.data.module)
+  case error(_):
+    log("Other error")
+  case _:
+    use(result.report)
+```
+
 ---
 
 ## 16. Grammar (Reference)
@@ -1774,6 +1939,7 @@ program        = stmt* ;
 stmt           = comment
                | skill_import_stmt
                | module_import_stmt
+               | input_stmt
                | export_stmt
                | agent_stmt
                | def_stmt
@@ -1805,10 +1971,14 @@ def_stmt       = "def" ident "(" [ident_list] ")" ":" newline INDENT stmt* DEDEN
 return_stmt    = "return" [expr] newline ;
 
 skill_import_stmt = "import" string "from" string newline ;
-module_import_stmt= "from" string "import" import_name [ "as" ident ] newline ;
-import_name    = ident | "@" ident ;
-export_stmt    = "export" export_name newline ;
-export_name    = ident | "@" ident ;
+module_import_stmt= "from" string "import" import_spec newline ;
+import_spec    = import_name [ "as" ident ]
+               | "*" "as" ident ;
+import_name    = ident ;
+export_stmt    = "export" ident newline ;
+
+input_stmt     = "input" ident ":" string ["=" expr] newline
+               | "input" ident "=" expr newline ;
 
 with_input_stmt= "with" "input" expr ":" newline INDENT stmt* DEDENT ;
 

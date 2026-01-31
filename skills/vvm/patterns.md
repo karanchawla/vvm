@@ -542,31 +542,136 @@ final = refine(initial, max=10, done=is_done, step=improve)
 
 **Problem:** Large programs become unwieldy.
 
-**Solution:** Split into focused modules.
+**Solution:** Split into focused modules. Agents are local to each module; export functions and values.
 
 ```vvm
-# lib/agents.vvm
+# lib/research.vvm
+input topic: "The topic to research"
+
 agent researcher(model="sonnet", prompt="Research expert")
 agent writer(model="opus", prompt="Technical writer")
-export @researcher
-export @writer
 
-# lib/workflows.vvm
-from "./agents.vvm" import @researcher
-from "./agents.vvm" import @writer
+research = @researcher `Research {topic}.`(topic)
+report = @writer `Write report.`(research)
 
-def research_and_report(topic):
-  research = @researcher `Research {topic}.`(topic)
-  return @writer `Write report.`(research)
-
-export research_and_report
+export research
+export report
 
 # main.vvm
-from "./lib/workflows.vvm" import research_and_report
+from "./lib/research.vvm" import * as research_module
 
-report = research_and_report("AI safety")
-export report
+result = research_module(topic="AI safety")
+final_report = result.report
+
+export final_report
 ```
+
+**Key insight:** Agents are implementation details. Modules export their computed values, not their agent definitions.
+
+---
+
+### Parameterized Module
+
+**Problem:** You have a workflow that needs to run multiple times with different inputs.
+
+**Solution:** Extract to a module with input declarations, import and call it.
+
+```vvm
+# lib/analyze.vvm
+input data: "The data to analyze"
+input focus: "Analysis focus area" = "general"
+
+agent analyst(model="sonnet", prompt="Expert data analyst.")
+
+analysis = @analyst `Analyze {data} with focus on {focus}.`(pack(data, focus))
+
+export analysis
+
+# main.vvm
+from "./lib/analyze.vvm" import * as analyze
+
+tech = analyze(data=report, focus="technical")
+business = analyze(data=report, focus="business")
+```
+
+**Benefits:**
+- Reuse without code duplication
+- Clear parameterization via inputs
+- Testable in isolation
+
+---
+
+### Module Pipeline
+
+**Problem:** Multi-stage workflow where each stage is distinct and reusable.
+
+**Solution:** Each stage is a module; main orchestrates the flow.
+
+```vvm
+# lib/gather.vvm
+input topic: "Topic to research"
+agent researcher(model="sonnet", prompt="Research expert.")
+data = @researcher `Gather data on {topic}.`(topic)
+export data
+
+# lib/analyze.vvm
+input data: "Data to analyze"
+agent analyst(model="sonnet", prompt="Data analyst.")
+analysis = @analyst `Analyze this data.`(data)
+export analysis
+
+# lib/report.vvm
+input analysis: "Analysis to report on"
+agent writer(model="opus", prompt="Report writer.")
+report = @writer `Write executive summary.`(analysis)
+export report
+
+# main.vvm
+from "./lib/gather.vvm" import * as gather
+from "./lib/analyze.vvm" import * as analyze
+from "./lib/report.vvm" import * as report
+
+raw = gather(topic="AI safety")
+insights = analyze(data=raw.data)
+final = report(analysis=insights.analysis)
+
+export final
+```
+
+**Benefits:**
+- Each stage testable independently
+- Clear data flow
+- Easy to modify individual stages
+
+---
+
+### Parallel Module Calls
+
+**Problem:** Independent module invocations that could run concurrently.
+
+**Solution:** Use `pmap` with module calls.
+
+```vvm
+from "./lib/research.vvm" import * as research
+
+topics = ["AI safety", "quantum computing", "climate tech"]
+
+def research_topic(topic):
+  return research(topic=topic)
+
+# Run all three in parallel
+results = pmap(topics, research_topic)
+
+# Access individual results
+ai_report = results[0].report
+quantum_report = results[1].report
+climate_report = results[2].report
+```
+
+**When to use:**
+- Multiple independent module calls
+- Same module, different inputs
+- Order doesn't matter
 
 ---
 
@@ -595,3 +700,6 @@ export report
 | Conditional Branching | Different processing paths |
 | Iterative Refinement | Quality improvement |
 | Module Organization | Large programs |
+| Parameterized Module | Reusable workflows with inputs |
+| Module Pipeline | Multi-stage workflows |
+| Parallel Module Calls | Concurrent module invocations |

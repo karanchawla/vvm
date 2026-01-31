@@ -1,0 +1,47 @@
+# 37-debate.vvm
+# Demonstrates module composition with callable modules.
+#
+# This example shows:
+# - Importing modules with `* as name`
+# - Calling modules with keyword arguments
+# - Accessing exported values from module results
+# - Composing multiple module calls into a workflow
+
+input topic: "The topic to debate"
+
+from "./lib/position.vvm" import * as position
+from "./lib/critique.vvm" import * as critique
+
+# Generate both sides of the debate
+pro = position(topic=topic, stance="for")
+con = position(topic=topic, stance="against")
+
+# Cross-critique: each side critiques the other
+pro_critique = critique(argument=con.argument)
+con_critique = critique(argument=pro.argument)
+
+# Final synthesis
+agent judge(
+  model="opus",
+  prompt="You evaluate debates fairly and identify the strongest points."
+)
+
+verdict = @judge `Evaluate this debate on: {topic}
+
+FOR:
+{pro.argument}
+
+AGAINST:
+{con.argument}
+
+Critique of FOR position:
+{con_critique.critique}
+
+Critique of AGAINST position:
+{pro_critique.critique}
+
+Provide a balanced assessment of both sides.`(pack(topic, pro, con, pro_critique, con_critique))
+
+export verdict
+export pro
+export con

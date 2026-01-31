@@ -175,13 +175,17 @@ constrain draft(attempts=3):
 # Skill imports
 import "web-search" from "github:anthropic/skills"
 
-# Module imports
-from "./lib/research.vvm" import deep_research
-from "./lib/agents.vvm" import @researcher
+# Module value imports (agents are local)
+from "./lib/research.vvm" import report
 
-# Exports
+# Callable module import
+from "./lib/research.vvm" import * as research
+result = research(topic="AI", depth="deep")
+report = result.report
+
+# Exports (values only)
 export result
-export @researcher
+export summary
 ```
 
 ### Standard Library
@@ -241,7 +245,16 @@ for i in range(10):
 | 25  | agent-memory-modes     | memory_mode: continue/dry_run/fresh |
 | 26  | agent-memory-multi-tenant | Per-key isolation |
 | 27  | agent-memory-parallel-safe | pmap-safe persistence |
-| 28  | agent-memory-escape-room | Demo: persistent game state |
+| 28  | ref-composition        | Ref composition patterns |
+| 29  | ref-loop-accumulation  | Accumulating refs in loops |
+| 30  | materializer-pattern   | Materializing refs |
+| 31  | run-inspector          | Inspecting run state |
+| 32  | ouroboros              | Self-modifying workflow |
+| 33  | wisdom-of-crowds       | Ensemble voting |
+| 34  | hydra                  | Multi-headed agents |
+| 35  | forge                  | Agent factory |
+| 36  | inputs                 | Input declarations |
+| 37  | debate                 | Module composition |
 
 ---
 

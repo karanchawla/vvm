@@ -653,6 +653,120 @@ final = refine(initial, max=5, done=is_done, step=step)
 
 ---
 
+## Module Anti-Patterns
+
+### Monolithic Module
+
+**Problem:** One module does too much, making it hard to test, modify, or reuse parts.
+
+```vvm
+# Bad: Everything in one file
+input topic: "Topic"
+
+agent researcher(model="sonnet", prompt="Research")
+agent analyst(model="sonnet", prompt="Analyze")
+agent writer(model="opus", prompt="Write")
+agent reviewer(model="sonnet", prompt="Review")
+
+research = @researcher `Research {topic}.`(topic)
+analysis = @analyst `Analyze.`(research)
+draft = @writer `Write report.`(analysis)
+final = @reviewer `Review and polish.`(draft)
+
+export final
+```
+
+**Why it's bad:**
+- Can't reuse individual stages
+- Hard to test in isolation
+- Changes affect everything
+
+**Solution:** Split into focused modules.
+
+```vvm
+# Good: Separate modules
+# lib/research.vvm, lib/analyze.vvm, lib/write.vvm, lib/review.vvm
+
+from "./lib/research.vvm" import * as research
+from "./lib/analyze.vvm" import * as analyze
+from "./lib/write.vvm" import * as write
+from "./lib/review.vvm" import * as review
+
+r = research(topic=topic)
+a = analyze(data=r.data)
+d = write(analysis=a.analysis)
+f = review(draft=d.draft)
+
+export f
+```
+
+---
+
+### Deep Module Nesting
+
+**Problem:** Module calls module which calls module, creating deep call stacks.
+
+```vvm
+# Bad: A calls B calls C calls D
+from "./a.vvm" import * as a
+result = a(x=input)  # A internally calls B which calls C which calls D
+```
+
+**Why it's bad:**
+- Hard to trace data flow
+- Difficult to debug
+- Changes cascade unpredictably
+
+**Solution:** Flatten to direct composition in the orchestrating module.
+
+```vvm
+# Good: Main orchestrates directly
+from "./b.vvm" import * as b
+from "./c.vvm" import * as c
+from "./d.vvm" import * as d
+
+b_result = b(input)
+c_result = c(b_result.output)
+d_result = d(c_result.output)
+```
+
+---
+
+### Hardcoded Module Values
+
+**Problem:** Module uses hardcoded values instead of inputs, reducing reusability.
+
+```vvm
+# Bad: Hardcoded values
+agent researcher(model="sonnet", prompt="Research AI safety")
+
+# Always researches the same topic
+report = @researcher `Research.`(())
+
+export report
+```
+
+**Why it's bad:**
+- Module only works for one case
+- Copy-paste to change behavior
+- No parameterization
+
+**Solution:** Use input declarations for configurable values.
+
+```vvm
+# Good: Parameterized
+input topic: "The topic to research"
+input depth: "Research depth" = "medium"
+
+agent researcher(model="sonnet", prompt="Research expert")
+
+report = @researcher `Research {topic} at {depth} depth.`(pack(topic, depth))
+
+export report
+```
+
+---
+
 ## Summary
 
 | Anti-Pattern | Problem | Solution |
@@ -677,3 +791,6 @@ final = refine(initial, max=5, done=is_done, step=step)
 | Overly Broad Handling | Catching all errors same way | Handle specific errors |
 | Constraint Overload | Too many constraints | Group and prioritize |
 | Circular Dependencies | Infinite recursion risk | Bounded iteration |
+| Monolithic Module | One module does everything | Split into focused modules |
+| Deep Module Nesting | Module calls module calls module | Flatten to direct composition |
+| Hardcoded Module Values | No parameterization | Use input declarations |
