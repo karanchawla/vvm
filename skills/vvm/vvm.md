@@ -440,6 +440,176 @@ When you encounter a module import (`from "path" import ...`):
 
 **Critical**: You MUST verify file existence with `test -f` before proceeding. Do not infer module contents from comments, variable names, or context. The file must exist on disk.
 
+### 4.4.1 URL and Registry Module Loading
+
+When you encounter a remote module import (`from "..." import ...` where the path is a URL or registry shorthand):
+
+1. **Load configuration** (see Section 4.4.2)
+   - Read `.vvm/.env` if present
+   - Apply environment variable overrides
+   - Use defaults for missing keys
+
+2. **Resolve import path**
+
+   **If path starts with `https://`:**
+   - Use the URL directly
+   - Validate domain against allowlist/denylist
+   - If blocked: emit E091 with `reason="domain_blocked"` and halt
+
+   **If path starts with `http://`:**
+   - If `VVM_REGISTRY_REQUIRE_HTTPS=1` (default): emit E092 and halt
+   - Otherwise: proceed with warning
+
+   **If path starts with `@` (registry shorthand):**
+   - Strip the `@` prefix
+   - Construct URL: `{VVM_REGISTRY_BASE_URL}{path}.vvm`
+   - Validate domain against allowlist/denylist
+   - If blocked: emit E091 with `reason="domain_blocked"` and halt
+
+   **Otherwise:**
+   - Treat as local path (existing behavior in Section 4.4)
+
+3. **Check local cache**
+   - Compute cache path: `.vvm/registry/<escaped_url>/<hash[:12]>/module.vvm`
+   - URL escaping: `://` → `_`, `/` → `__`, `:` → `_c_`, `?` → `_q_`
+   - Example: `https://vvm.dev/alice/research.vvm` → `https_vvm.dev__alice__research.vvm`
+   - If cache exists and not expired (< 1 hour from `fetched_at`), use cached module
+   - Otherwise proceed to fetch
+
+4. **Fetch remote module**
+   - Use WebFetch or equivalent HTTP client
+   - Timeout: 30 seconds
+   - On network error: emit E091 with message and halt
+   - On 4xx/5xx response: emit E091 with status code and halt
+   - On success: proceed to cache
+
+5. **Cache the module**
+   - Compute SHA-256 hash of content
+   - Create cache directory: `.vvm/registry/<escaped_url>/<hash[:12]>/`
+   - Write `module.vvm` with fetched content
+   - Write `meta.json`:
+     ```json
+     {
+       "source_url": "<url>",
+       "content_hash": "<full sha256>",
+       "fetched_at": "<ISO timestamp>",
+       "content_length": <bytes>
+     }
+     ```
+
+6. **Record in run imports** (filesystem state mode)
+   - Append to `.vvm/runs/<run-id>/imports.json`
+   - Include original source, resolved URL, and content hash
+
+7. **Parse and validate**
+   - Read cached `module.vvm`
+   - Parse as VVM module
+   - Resolve requested exports
+   - If export not found: emit E090
+
+### 4.4.2 Configuration Loading
+
+When starting program execution, load registry configuration:
+
+1. **Initialize defaults**
+   ```
+   VVM_REGISTRY_BASE_URL = "https://vvm.dev/"
+   VVM_REGISTRY_ALLOWLIST_DOMAINS = ""
+   VVM_REGISTRY_DENYLIST_DOMAINS = ""
+   VVM_REGISTRY_REQUIRE_HTTPS = "1"
+   ```
+
+2. **Read `.vvm/.env` if present**
+   - Parse as standard dotenv format
+   - Override defaults with file values
+
+3. **Read environment variables**
+   - Override with any matching `VVM_*` environment variables
+
+4. **Parse domain lists**
+   - Split comma-separated values into arrays
+   - Trim whitespace from each domain
+
+**Domain validation algorithm:**
+
+```
+1. Extract domain from URL
+2. If allowlist is non-empty:
+   - If domain in allowlist: ALLOW
+   - Otherwise: BLOCK
+3. If denylist is non-empty:
+   - If domain in denylist: BLOCK
+4. ALLOW (default)
+```
+
+**Narration for URL imports:**
+
+```
+📍 Loading module: https://example.com/lib/research.vvm
+📦 Cache miss - fetching from network
+⏳ Fetching... (30s timeout)
+✅ Cached at .vvm/registry/https_example.com__lib__research.vvm/a7b3c9d2e1f0/
+📍 Parsing module...
+✅ deep_research imported
+```
+
+**Narration for registry shorthand:**
+
+```
+📍 Loading module: @alice/research
+📍 Resolving: https://vvm.dev/alice/research.vvm
+📦 Cache miss - fetching from network
+✅ Cached, deep_research imported
+```
+
+**Error examples:**
+
+```
+❌ E091 line 3: URL fetch failed: https://example.com/lib/utils.vvm
+   Status: 404 Not Found
+
+❌ E091 line 5: Domain blocked: untrusted.com
+   Configure VVM_REGISTRY_ALLOWLIST_DOMAINS to permit.
+
+❌ E092 line 7: Insecure protocol rejected: http://example.com/lib/utils.vvm
+   Use https:// for remote imports.
+
+❌ E093 line 9: Invalid URL format: file:///local/path.vvm
+   Use relative paths for local imports (e.g., ./path.vvm)
+```
+
+### 4.4.3 Contract Extraction
+
+When compiling a module (local or remote), extract the contract to show users what inputs are required and what outputs are produced. This is read-only — no execution, no agent calls.
+
+**Extract input declarations:**
+
+For each `input` statement in the module:
+- `input name: "description"` → required input with description
+- `input name: "description" = default` → optional input with description and default
+- `input name = default` → optional input with default (no description)
+
+**Extract export declarations:**
+
+For each `export name` statement, record the exported identifier.
+
+**Contract output format:**
+
+```
+Contract:
+  Inputs:
+    topic (required): "The topic to research"
+    depth (optional = "medium"): "Research depth"
+
+  Exports:
+    report
+    summary
+```
+
+If there are no inputs: `Inputs: (none)`
+
+If there are no exports: `Exports: (none)`
+
 ### 4.5 Run State Management (Filesystem State Mode)
 
 When operating in **filesystem state mode**, the VM creates a run directory for each execution:

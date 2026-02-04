@@ -1159,6 +1159,10 @@ Semantics:
 
 When encountering `from "path" import ...`:
 
+For URL imports (`https://...`) and registry shorthand (`@...`), see Section 11.3.1.
+
+For local paths:
+
 1. **Compute resolved path**: If `path` starts with `./` or `../`, resolve relative to the directory containing the importing file. Otherwise, treat as host-defined identifier.
 
 2. **Verify file exists**: The runtime MUST use `test -f <resolved_path>` (via Bash tool) to verify the file exists. The runtime MUST NOT assume a file exists without verification.
@@ -1168,6 +1172,144 @@ When encountering `from "path" import ...`:
 4. **Read and parse module**: If file exists, use the Read tool to load the file contents, then parse as a VVM module. Syntax errors are reported with the imported file's path.
 
 5. **Resolve exports**: After parsing, verify the requested export exists in the module's export list. If not found, emit E090 with message: `Export '{name}' not found in module '{path}'`.
+
+#### 11.3.1 URL Module Imports
+
+When you need to share workflows across projects or teams, you can import modules directly from HTTPS URLs:
+
+```vvm
+from "https://example.com/lib/research.vvm" import deep_research
+from "https://raw.githubusercontent.com/user/repo/main/utils.vvm" import * as utils
+```
+
+**Resolution rules:**
+
+| Import String | Resolution |
+|--------------|------------|
+| Starts with `https://` | Fetch from URL, cache locally |
+| Starts with `http://` | Rejected (insecure protocol) |
+| Starts with `@` | Registry shorthand (see 11.3.1.1) |
+| Starts with `./` or `../` | Local path (existing behavior) |
+
+**Security defaults:**
+
+- HTTPS is required. The runtime rejects `http://` URLs with `error(kind="rejected", reason="insecure_protocol")`.
+- `file://` URLs are unsupported; use relative paths for local files.
+- Standard TLS certificate validation is required.
+
+##### 11.3.1.1 Registry Shorthand
+
+When an import path starts with `@`, it's a registry reference:
+
+```vvm
+from "@alice/research" import deep_research
+from "@acme-team/utils/validators" import validate_json
+```
+
+Resolution:
+1. Strip the `@` prefix
+2. Read `VVM_REGISTRY_BASE_URL` from configuration (default: `https://vvm.dev/`)
+3. Append the path with `.vvm` extension
+4. Fetch as a standard URL import
+
+**Example resolution:**
+
+| Shorthand | Base URL | Resolved URL |
+|-----------|----------|--------------|
+| `@alice/research` | `https://vvm.dev/` | `https://vvm.dev/alice/research.vvm` |
+| `@acme/tools/lint` | `https://vvm.dev/` | `https://vvm.dev/acme/tools/lint.vvm` |
+
+The registry shorthand provides cleaner syntax for commonly-used workflow libraries while maintaining the same caching and security semantics as full URLs.
+
+#### 11.3.2 Module Caching
+
+URL modules are cached locally at `.vvm/registry/` to avoid repeated network requests.
+
+**Cache layout:**
+
+```
+.vvm/registry/
+  <escaped_url>/
+    <hash>/
+      module.vvm       # Fetched content
+      meta.json        # Fetch metadata
+```
+
+Where:
+- `<escaped_url>` escapes special characters: `://` → `_`, `/` → `__`, `:` → `_c_`, `?` → `_q_`
+- `<hash>` is the first 12 characters of the SHA-256 of the module content
+
+**meta.json schema:**
+
+```json
+{
+  "source_url": "https://example.com/lib/research.vvm",
+  "content_hash": "a7b3c9d2e1f0456789abcdef...",
+  "fetched_at": "2026-01-30T14:30:00Z",
+  "content_length": 1234
+}
+```
+
+**Cache behavior:**
+
+1. **Cache hit**: If the module exists in cache and is not expired (default TTL: 1 hour), use the cached version.
+2. **Cache miss**: Fetch the module, compute its hash, store in cache, then proceed.
+3. **Cache refresh**: On expiry, re-fetch and update if content changed.
+
+The cache is project-local (under `.vvm/`). Add `.vvm/` to your `.gitignore`.
+
+#### 11.3.3 Registry Configuration
+
+VVM reads registry settings from `.vvm/.env` in the project root. This file uses standard dotenv format.
+
+**Configuration keys:**
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `VVM_REGISTRY_BASE_URL` | `https://vvm.dev/` | Base URL for registry shorthand resolution |
+| `VVM_REGISTRY_ALLOWLIST_DOMAINS` | *(empty)* | Comma-separated list of allowed domains |
+| `VVM_REGISTRY_DENYLIST_DOMAINS` | *(empty)* | Comma-separated list of blocked domains |
+| `VVM_REGISTRY_REQUIRE_HTTPS` | `1` | Require HTTPS for all remote imports |
+
+**Example `.vvm/.env`:**
+
+```env
+VVM_REGISTRY_BASE_URL=https://registry.mycompany.com/
+VVM_REGISTRY_ALLOWLIST_DOMAINS=registry.mycompany.com,raw.githubusercontent.com
+VVM_REGISTRY_REQUIRE_HTTPS=1
+```
+
+**Resolution order:**
+
+1. Environment variables (highest priority)
+2. `.vvm/.env` in project root
+3. Default values
+
+**Domain filtering:**
+
+When both allowlist and denylist are set, the allowlist takes precedence:
+- If allowlist is non-empty: domain must appear in allowlist
+- If allowlist is empty and denylist is non-empty: domain must not appear in denylist
+- If a fetch is blocked, the runtime emits E091 with `reason="domain_blocked"`
+
+#### 11.3.4 Hash Pinning
+
+In filesystem state mode, the runtime records content hashes of all imported modules in `.vvm/runs/<run-id>/imports.json`:
+
+```json
+{
+  "imports": [
+    {
+      "source": "@alice/research",
+      "resolved_url": "https://vvm.dev/alice/research.vvm",
+      "content_hash": "a7b3c9d2e1f0456789abcdef...",
+      "resolved_at": "2026-01-30T14:30:00Z"
+    }
+  ]
+}
+```
+
+This ensures reproducibility and enables detecting when shared workflows change between runs.
 
 ### 11.4 Exports
 
@@ -1845,6 +1987,10 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | E081  | `break`/`continue` used outside a loop |
 | E082  | `try:` without `except` or `finally` |
 | E090  | Module import/export cannot be resolved (missing module or missing exported name) |
+| E091  | URL fetch failed (network error, HTTP 4xx/5xx, timeout) |
+| E092  | Insecure protocol rejected (`http://` URL) |
+| E093  | Invalid URL format (malformed or unsupported scheme like `file://`) |
+| E094  | Cache integrity error (stored hash doesn't match content) |
 | E100  | Duplicate branch name in parallel block |
 | E101  | Invalid `join` value (must be `"all"`, `"first"`, or `"any"`) |
 | E102  | `count` option only valid with `join="any"` |

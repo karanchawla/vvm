@@ -42,9 +42,62 @@ VVM supports two execution state modes:
 - Saves tokens for long workflows
 - Use for: production runs, long workflows, large outputs
 
-### Flag Usage
-- Default: in-context mode
-- Override: Run with `--state=filesystem` to enable artifact mode
+## Flags
+
+| Flag | Description |
+|------|-------------|
+| `--state=filesystem` | Enable filesystem state mode (artifact-backed outputs) |
+| `--input name="value"` | Provide input values for the program |
+
+## Registry Shorthand
+
+Programs can import modules using a registry path:
+
+```vvm
+from "@alice/research" import deep_research
+```
+
+This resolves to `https://vvm.dev/alice/research.vvm` by default (@ stripped, .vvm appended).
+
+**Configure:** Set `VVM_REGISTRY_BASE_URL` in `.vvm/.env` or as an environment variable.
+
+## URL Module Imports
+
+Programs can also import modules from full HTTPS URLs:
+
+```vvm
+from "https://raw.githubusercontent.com/example/vvm-libs/main/research.vvm" import deep_research
+
+findings = deep_research("quantum computing")
+export findings
+```
+
+**Behavior:**
+1. Check `.vvm/registry/` for cached copy
+2. If missing or expired (> 1 hour), fetch via HTTPS
+3. Cache with content hash for reproducibility
+4. Parse and execute as local module
+
+**Security:** Only HTTPS URLs are allowed. HTTP is rejected by default with E092.
+
+**Cache location:** `.vvm/registry/<escaped_url>/<hash>/module.vvm`
+
+## Domain Trust Controls
+
+Configure allowed/blocked domains in `.vvm/.env`:
+
+```env
+# Allow only specific domains
+VVM_REGISTRY_ALLOWLIST_DOMAINS=vvm.dev,raw.githubusercontent.com
+
+# Or block specific domains
+VVM_REGISTRY_DENYLIST_DOMAINS=untrusted-site.com
+
+# Custom registry base URL
+VVM_REGISTRY_BASE_URL=https://registry.mycompany.com/
+```
+
+Blocked imports produce E091 with `reason="domain_blocked"`.
 
 ## Narration Protocol
 

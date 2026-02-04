@@ -22,9 +22,17 @@ Validate a VVM program without executing it. This is static analysis only.
 ```
 ✅ <file.vvm> is valid
 
+Contract:
+  Inputs:
+    topic (required): "The topic to research"
+    depth (optional = "medium"): "Research depth"
+
+  Exports:
+    report
+    summary
+
 Agents: <count>
 Functions: <count>
-Exports: <list>
 ```
 
 **Error:**
@@ -38,6 +46,20 @@ E0XX line N col C: description
 
 If no file specified, search for `.vvm` files and prompt user to select.
 
+## Contract Display
+
+When compilation succeeds, the contract shows what inputs the module requires and what outputs it produces. This allows you to inspect a workflow's requirements before running it.
+
+For remote modules, fetch and cache first, then display the contract:
+
+```bash
+/vvm-compile "@alice/research"
+/vvm-compile "https://example.com/research.vvm"
+```
+
+Same output — the contract is extracted from the parsed module.
+
 ## Files to Read
 
 - `skills/vvm/spec.md` - Complete grammar and error definitions (Section 16)
+- `skills/vvm/vvm.md` - Contract extraction algorithm (Section 4.4.3)
