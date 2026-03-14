@@ -187,6 +187,7 @@ final = refine(
 | `/vvm-boot` | Initialize VVM, create first program |
 | `/vvm-compile <file>` | Validate without running |
 | `/vvm-run <file>` | Execute a program |
+| `/vvm-registry-inspect <source>` | Inspect remote workflow contract and cache metadata |
 
 ---
 

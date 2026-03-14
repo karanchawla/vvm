@@ -46,6 +46,13 @@ E0XX line N col C: description
 
 If no file specified, search for `.vvm` files and prompt user to select.
 
+## Flags
+
+| Flag | Description |
+|------|-------------|
+| `--offline` | Disable network fetches for remote imports (cache-only mode) |
+| `--cache-only` | Alias for `--offline` |
+
 ## Contract Display
 
 When compilation succeeds, the contract shows what inputs the module requires and what outputs it produces. In VVM, outputs are derived from `export` declarations. This allows you to inspect a workflow's requirements before running it.
@@ -58,6 +65,23 @@ For remote modules, fetch and cache first, then display the contract:
 ```
 
 Same output — the contract is extracted from the parsed module.
+
+For a dedicated registry discovery view (contract + cache metadata), use:
+
+```bash
+/vvm-registry-inspect "@alice/research"
+```
+
+## Remote Compile Behavior
+
+For URL/registry imports, `/vvm-compile` uses the same resolver, cache, trust controls, and integrity checks as runtime module loading.
+
+1. Resolve source (`@handle/slug` or `https://...`) to a URL.
+2. If `--offline`/`--cache-only` is set:
+   - Cache hit: compile from cache
+   - Cache miss: fail with `E095`
+3. If online mode and cache is missing/expired, fetch and cache first.
+4. Parse module and extract contract without executing top-level statements or spawning agents.
 
 ## Files to Read
 

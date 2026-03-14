@@ -448,6 +448,7 @@ When you encounter a remote module import (`from "..." import ...` where the pat
 1. **Load configuration** (see Section 4.4.2)
    - Read `.vvm/.env` if present
    - Apply environment variable overrides
+   - Apply host flag overrides (`--offline`, `--cache-only`) if provided
    - Use defaults for missing keys
 
 2. **Resolve import path**
@@ -474,10 +475,14 @@ When you encounter a remote module import (`from "..." import ...` where the pat
    - Compute cache path: `.vvm/registry/<escaped_url>/<hash[:12]>/module.vvm`
    - URL escaping: `://` → `_`, `/` → `__`, `:` → `_c_`, `?` → `_q_`
    - Example: `https://vvm.dev/alice/research.vvm` → `https_vvm.dev__alice__research.vvm`
-   - If cache exists and not expired (< 1 hour from `fetched_at`), use cached module
-   - Otherwise proceed to fetch
+   - If offline/cache-only mode is enabled:
+     - If cache exists: use it (even if expired; warn if stale)
+     - If cache missing: emit E095 and halt
+   - If offline/cache-only mode is not enabled:
+     - If cache exists and not expired (< 1 hour from `fetched_at`), use cached module
+     - Otherwise proceed to fetch
 
-4. **Fetch remote module**
+4. **Fetch remote module** (online mode only)
    - Use WebFetch or equivalent HTTP client
    - Timeout: 30 seconds
    - On network error: emit E091 with message and halt
@@ -518,6 +523,8 @@ When starting program execution, load registry configuration:
    VVM_REGISTRY_ALLOWLIST_DOMAINS = ""
    VVM_REGISTRY_DENYLIST_DOMAINS = ""
    VVM_REGISTRY_REQUIRE_HTTPS = "1"
+   VVM_REGISTRY_OFFLINE = "0"
+   VVM_REGISTRY_CACHE_ONLY = "0"
    ```
 
 2. **Read `.vvm/.env` if present**
@@ -527,9 +534,21 @@ When starting program execution, load registry configuration:
 3. **Read environment variables**
    - Override with any matching `VVM_*` environment variables
 
-4. **Parse domain lists**
+4. **Apply host-mode overrides**
+   - If user passed `--offline`: set offline mode on
+   - If user passed `--cache-only`: set offline mode on
+
+5. **Parse domain lists**
    - Split comma-separated values into arrays
    - Trim whitespace from each domain
+
+6. **Resolve offline mode**
+   - Offline mode is enabled when any of:
+     - host flag `--offline`
+     - host flag `--cache-only`
+     - `VVM_REGISTRY_OFFLINE == "1"`
+     - `VVM_REGISTRY_CACHE_ONLY == "1"`
+   - Otherwise, online fetch is allowed
 
 **Domain validation algorithm:**
 
@@ -552,6 +571,16 @@ When starting program execution, load registry configuration:
 ✅ Cached at .vvm/registry/https_example.com__lib__research.vvm/a7b3c9d2e1f0/
 📍 Parsing module...
 ✅ deep_research imported
+```
+
+**Narration for offline/cache-only imports:**
+
+```
+📍 Loading module: @alice/research
+📍 Resolving: https://vvm.dev/alice/research.vvm
+📦 Offline mode enabled (cache-only)
+✅ Cache hit: .vvm/registry/https_vvm.dev__alice__research.vvm/a7b3c9d2e1f0/
+✅ deep_research imported (offline)
 ```
 
 **Narration for registry shorthand:**
@@ -577,6 +606,10 @@ When starting program execution, load registry configuration:
 
 ❌ E093 line 9: Invalid URL format: file:///local/path.vvm
    Use relative paths for local imports (e.g., ./path.vvm)
+
+❌ E095 line 11: Offline/cache-only mode cache miss: @alice/research
+   No cached module found at .vvm/registry/...
+   Re-run without --offline to fetch and populate cache.
 ```
 
 ### 4.4.3 Contract Extraction

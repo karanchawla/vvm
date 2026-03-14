@@ -383,7 +383,7 @@ To evaluate `@agent `template`(...)`:
 6. Spawn the subagent with (agent config, task prompt string, structured input value) and wait for completion
 7. If the host reports success:
    - extract and apply any memory patch as described in Section 3.5 (depending on `memory_mode`)
-   - return the subagent's **user-visible output** as a VVM value (a string)
+   - return the subagent's result value according to state mode (Section 3.4.2A)
 8. If the host reports failure, return an error value (Section 3.2) and do not modify memory.
 
 #### 3.4.2A State Mode and Output Type
@@ -405,11 +405,13 @@ Mode selection:
 
 #### 3.4.3 Result value
 
-For portability (Prose-like), a successful agent call yields a **string**: the subagent's final response text.
+A successful agent call yields:
+- **in-context mode**: a **string** (the subagent's final response text)
+- **filesystem state mode**: a **ref value** (Section 3.2.5)
 
 Notes:
-- Hosts/tools may provide richer result objects; runtimes SHOULD extract the human-visible final output text.
-- VVM 0.0.1 does not automatically parse JSON or VVM literals out of that text. If you want structured outputs, ask the agent to return a structured format and treat it as text (future versions may add parsing helpers).
+- Hosts/tools may provide richer result objects; runtimes SHOULD normalize them to the mode-specific return shape.
+- VVM 0.0.4 does not automatically parse JSON or VVM literals out of that text. If you want structured outputs, ask the agent to return a structured format and treat it as text (future versions may add parsing helpers).
 
 #### 3.4.3A Template Interpolation of Ref Values
 
@@ -1156,7 +1158,9 @@ Module imports are processed before execution. Only **values** can be imported â
 
 Semantics:
 - If the import string starts with `./` or `../`, it is resolved relative to the directory of the importing module file (not the process CWD).
-- Otherwise, the import string is interpreted as a host-defined module identifier (future: registries); MVP runtimes may restrict this to local file paths only.
+- If the import string starts with `@`, it is resolved as registry shorthand (Section 11.3.1.1).
+- If the import string starts with `https://`, it is resolved as a URL import (Section 11.3.1).
+- Otherwise, the import string is interpreted as a host-defined module identifier; MVP runtimes may restrict this to local file paths only.
 - After resolution, the runtime computes a canonical module identity (lexically normalize `.`/`..` segments). Importing the same canonical module multiple times refers to the same module.
 - A module's exports are declared by `export ...` statements in that module.
 - Importing `name` imports an exported value (including function values).
@@ -1204,6 +1208,7 @@ from "https://raw.githubusercontent.com/user/repo/main/utils.vvm" import * as ut
 - HTTPS is required. The runtime rejects `http://` URLs with `error(kind="rejected", reason="insecure_protocol")`.
 - `file://` URLs are unsupported; use relative paths for local files.
 - Standard TLS certificate validation is required.
+- In offline/cache-only mode (Section 11.3.4), remote imports resolve from local cache only.
 
 ##### 11.3.1.1 Registry Shorthand
 
@@ -1263,6 +1268,7 @@ Where:
 1. **Cache hit**: If the module exists in cache and is not expired (default TTL: 1 hour), use the cached version.
 2. **Cache miss**: Fetch the module, compute its hash, store in cache, then proceed.
 3. **Cache refresh**: On expiry, re-fetch and update if content changed.
+4. **Offline/cache-only mode** (Section 11.3.4): never fetch; use cached entries only.
 
 The cache is project-local (under `.vvm/`). Add `.vvm/` to your `.gitignore`.
 
@@ -1278,6 +1284,8 @@ VVM reads registry settings from `.vvm/.env` in the project root. This file uses
 | `VVM_REGISTRY_ALLOWLIST_DOMAINS` | *(empty)* | Comma-separated list of allowed domains |
 | `VVM_REGISTRY_DENYLIST_DOMAINS` | *(empty)* | Comma-separated list of blocked domains |
 | `VVM_REGISTRY_REQUIRE_HTTPS` | `1` | Require HTTPS for all remote imports |
+| `VVM_REGISTRY_OFFLINE` | `0` | Disable network fetches; cache-only behavior |
+| `VVM_REGISTRY_CACHE_ONLY` | `0` | Alias for offline behavior |
 
 **Example `.vvm/.env`:**
 
@@ -1285,6 +1293,7 @@ VVM reads registry settings from `.vvm/.env` in the project root. This file uses
 VVM_REGISTRY_BASE_URL=https://registry.mycompany.com/
 VVM_REGISTRY_ALLOWLIST_DOMAINS=registry.mycompany.com,raw.githubusercontent.com
 VVM_REGISTRY_REQUIRE_HTTPS=1
+VVM_REGISTRY_OFFLINE=0
 ```
 
 **Resolution order:**
@@ -1300,7 +1309,26 @@ When both allowlist and denylist are set, the allowlist takes precedence:
 - If allowlist is empty and denylist is non-empty: domain must not appear in denylist
 - If a fetch is blocked, the runtime emits E091 with `reason="domain_blocked"`
 
-#### 11.3.4 Hash Pinning
+#### 11.3.4 Offline and Cache-Only Mode
+
+Runtimes MAY expose offline/cache-only behavior via host flags (for example, `--offline` and `--cache-only`) and/or configuration.
+
+Portable behavior when offline/cache-only mode is enabled:
+
+1. **No network fetches** for URL or registry imports.
+2. **Cache hit**: use cached module immediately.
+3. **Cache miss**: emit `E095` and halt with a helpful message identifying the unresolved URL/shorthand.
+4. **Expired cache entries**: still usable in offline mode (best-effort reproducibility over freshness). Runtimes SHOULD warn when using stale cache entries.
+5. **Integrity checks still apply**: if cached content and metadata hash mismatch, emit `E094`.
+
+Mode resolution:
+- `--offline` or `--cache-only` (host flags) take highest priority.
+- Otherwise, if `VVM_REGISTRY_OFFLINE=1` or `VVM_REGISTRY_CACHE_ONLY=1`, offline mode is enabled.
+- Otherwise, normal online fetch behavior applies.
+
+Offline mode does not change domain/protocol validation rules; those still apply to resolved URLs.
+
+#### 11.3.5 Hash Pinning
 
 In filesystem state mode, the runtime records content hashes of all imported modules in `.vvm/runs/<run-id>/imports.json`:
 
@@ -1474,7 +1502,7 @@ Output-property validation behavior:
 
 ## 12. Execution Model (Eager, Sequential)
 
-VVM uses **strict (eager) evaluation**. Agent calls block until they return a value (or an error value). There are no futures/tasks in VVM 0.3.
+VVM uses **strict (eager) evaluation**. Agent calls block until they return a value (or an error value). There are no futures/tasks in VVM 0.0.4.
 
 ### 12.1 Program order
 
@@ -2022,6 +2050,7 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | E092  | Insecure protocol rejected (`http://` URL) |
 | E093  | Invalid URL format (malformed or unsupported scheme like `file://`) |
 | E094  | Cache integrity error (stored hash doesn't match content) |
+| E095  | Offline/cache-only mode cache miss for remote import |
 | E100  | Duplicate branch name in parallel block |
 | E101  | Invalid `join` value (must be `"all"`, `"first"`, or `"any"`) |
 | E102  | `count` option only valid with `join="any"` |
@@ -2188,9 +2217,9 @@ parallel_opt   = "join" "=" string
                | "on_fail" "=" string ;
 branch_stmt    = ident "=" expr newline ;
 
-	try_stmt       = "try" ":" newline INDENT stmt* DEDENT [except_block] [finally_block] ;
-	except_block   = "except" "as" ident ":" newline INDENT stmt* DEDENT ;
-	finally_block  = "finally" ":" newline INDENT stmt* DEDENT ;
+try_stmt       = "try" ":" newline INDENT stmt* DEDENT [except_block] [finally_block] ;
+except_block   = "except" "as" ident ":" newline INDENT stmt* DEDENT ;
+finally_block  = "finally" ":" newline INDENT stmt* DEDENT ;
 raise_stmt     = "raise" [string] newline ;
 pass_stmt      = "pass" newline ;
 break_stmt     = "break" newline ;
@@ -2222,7 +2251,7 @@ agent_args     = kw_args | expr ["," kw_args] ;
 agent_ref      = "@" ident [ ".with" "(" [kw_args] ")" ]
                | "@{" [kw_args] "}" ;
 
-	sem_pred       = "?" template [ "(" expr ")" ] ;
+sem_pred       = "?" template [ "(" expr ")" ] ;
 
 call           = ident "(" [call_args] ")" ;
 call_args      = kw_args | expr ("," expr)* ["," kw_args] ;
@@ -2235,7 +2264,7 @@ sem_pred_case  = "?" template ;
 
 template       = "`" { any_char_except_unescaped_backtick } "`" ;
 
-	literal        = "()" | "true" | "false" | number | string ;
+literal        = "()" | "true" | "false" | number | string ;
 string         = quoted_string | triple_quoted_string ;
 quoted_string  = /"([^"\\\\]|\\\\.)*"/ ;
 triple_quoted_string = /\"\"\"(.|\\n)*?\"\"\"/ ;

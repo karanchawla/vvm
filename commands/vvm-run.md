@@ -48,6 +48,8 @@ VVM supports two execution state modes:
 |------|-------------|
 | `--state=filesystem` | Enable filesystem state mode (artifact-backed outputs) |
 | `--input name="value"` | Provide input values for the program |
+| `--offline` | Disable network fetches for remote imports (cache-only mode) |
+| `--cache-only` | Alias for `--offline` |
 
 ## Registry Shorthand
 
@@ -74,9 +76,12 @@ export findings
 
 **Behavior:**
 1. Check `.vvm/registry/` for cached copy
-2. If missing or expired (> 1 hour), fetch via HTTPS
-3. Cache with content hash for reproducibility
-4. Parse and execute as local module
+2. If `--offline`/`--cache-only` is set:
+   - Cache hit: use cached module (including stale entries, with warning)
+   - Cache miss: halt with `E095`
+3. If online mode and cache is missing or expired (> 1 hour), fetch via HTTPS
+4. Cache with content hash for reproducibility
+5. Parse and execute as local module
 
 **Security:** Only HTTPS URLs are allowed. HTTP is rejected by default with E092.
 
