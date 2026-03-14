@@ -13,4 +13,5 @@ argument = @arguer `Argue {stance} the following topic: {topic}
 
 Present 3 strong points supporting your position.`(pack(topic, stance))
 
+# Exported names define this module's output contract.
 export argument

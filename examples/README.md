@@ -14,6 +14,14 @@ Validate without running:
 /vvm-compile examples/01-hello-world.vvm
 ```
 
+## Contract Semantics
+
+For callable modules, VVM derives workflow outputs from `export` declarations.
+
+- `input ...` declares required/optional inputs
+- `export name` declares output contract keys returned to callers
+- `from "./x.vvm" import * as mod` + `mod(...)` returns an object keyed by exported names
+
 ## Examples by Category
 
 ### Basics (01-08)

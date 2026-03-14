@@ -1,5 +1,6 @@
-# VVM Example 36: Module Inputs
-# Demonstrates input declarations for parameterized modules.
+# VVM Example 36: Module Inputs + Export Contract
+# Demonstrates input declarations for parameterized modules and
+# export-derived workflow outputs.
 #
 # This module can be:
 # 1. Run directly with CLI: vvm run 36-inputs.vvm --input topic="AI"
@@ -50,8 +51,9 @@ Produce a structured report with:
 summary = @summarizer `Summarize this research in one sentence.`(report)
 
 # === Exports ===
-# Only values can be exported. When this module is called,
-# the result object will contain: { report: <ref>, summary: <ref> }
+# In VVM, exports are the workflow output contract surface.
+# When this module is called, the result object contains exactly:
+# { report: <ref>, summary: <ref> }
 
 export report
 export summary

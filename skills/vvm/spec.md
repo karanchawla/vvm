@@ -212,6 +212,14 @@ VVM is dynamically typed. Values flow between agent calls, control flow, and the
   - Comparing functions or agents raises a `thrown` error.
 - Ordering operators (`<`, `<=`, `>`, `>=`) are defined only for numbers; other uses raise a `thrown` error.
 
+#### 3.1.4 Member and index access
+
+- Member access uses dot syntax: `obj.key`
+- Index access uses bracket syntax: `value[index_or_key]`
+- `obj.key` requires `obj` to be an object; otherwise raise `thrown`.
+- `list[i]` requires `list` to be a list and `i` to be an integer in range; otherwise raise `thrown`.
+- `obj[k]` on objects requires `k` to be a string key (or a value coerced to a string by host-defined rules); missing keys raise `thrown` unless Section 11.6.3 defines a module-contract-specific error.
+
 ### 3.2 Errors (value-based)
 
 Errors are values. VVM distinguishes:
@@ -1151,7 +1159,7 @@ Semantics:
 - Otherwise, the import string is interpreted as a host-defined module identifier (future: registries); MVP runtimes may restrict this to local file paths only.
 - After resolution, the runtime computes a canonical module identity (lexically normalize `.`/`..` segments). Importing the same canonical module multiple times refers to the same module.
 - A module's exports are declared by `export ...` statements in that module.
-- Importing `name` imports a value/function export.
+- Importing `name` imports an exported value (including function values).
 - Importing `* as name` binds the module itself as a callable.
 - If the referenced module or exported name cannot be resolved, it is a validation error.
 
@@ -1318,18 +1326,23 @@ export report
 export summary
 ```
 
-Exports define the program's public API. Only **values** can be exported — agents are local to their module.
+Exports define the program's public API and **workflow output contract**. Only **values** can be exported — agents are local to their module.
 
 **Why agents cannot be exported:**
 - Agents are implementation details
 - Callers should interact with modules via their exported values
 - This eliminates namespace complexity between `@agent` and values
 
+Export rules:
+- Export names MUST be unique within a module (duplicate export names are validation error `E113`).
+- Export names are the contract keys callers receive from module invocation.
+- The contract output order SHOULD follow declaration order for stable inspection output.
+
 For a script-style program, a runtime should:
 - Execute top-level control flow (the script)
 - At the end of execution, return the exported values
 
-Export declarations are hoisted at module load time. Exporting the same name multiple times is allowed and has no additional effect.
+Export declarations are hoisted at module load time.
 
 ---
 
@@ -1399,13 +1412,18 @@ All arguments must be keyword arguments. Positional arguments are not supported 
 
 #### 11.6.2 Result Object
 
-A module call returns an object containing all values exported by the module:
+A module call returns an object containing all values exported by the module. This object is the callee's workflow output contract:
 
 ```vvm
 result = research(topic="AI")
 result.report    # The exported 'report' value
 result.summary   # The exported 'summary' value
 ```
+
+Result object guarantees:
+- Keys are exactly the exported names from the callee module.
+- No non-exported values are included.
+- If there are no exports, the result is `{}`.
 
 If an exported value is a ref (from an agent call), the ref passes through unchanged. The caller receives the same ref object the module created.
 
@@ -1418,6 +1436,7 @@ Module calls can produce these runtime errors:
 | `missing_input` | Required input not provided |
 | `unknown_input` | Argument doesn't match any declared input |
 | `module_failed` | Module execution raised an error |
+| `unknown_output` | Caller accessed an output key not declared by callee contract |
 
 ```vvm
 # Error: missing_input (topic is required)
@@ -1425,6 +1444,10 @@ result = research()
 
 # Error: unknown_input (no input named 'unknown')
 result = research(topic="AI", unknown="value")
+
+# Error: unknown_output (no output named 'citations')
+result = research(topic="AI")
+refs = result.citations
 ```
 
 Errors from module calls can be handled with `match`:
@@ -1435,11 +1458,17 @@ result = research(topic="AI")
 match result:
   case error(kind="missing_input"):
     handle_missing(result)
+  case error(kind="unknown_output"):
+    handle_bad_output_access(result)
   case error(kind="module_failed"):
     handle_failure(result)
   case _:
     use(result.report)
 ```
+
+Output-property validation behavior:
+- If the caller and callee are both statically known at compile time, runtimes SHOULD raise compile error `E114` when code accesses a missing output key.
+- If static validation is unavailable, runtimes MUST return `error(kind="unknown_output", name="...")` at runtime when such access occurs.
 
 ---
 
@@ -1937,15 +1966,17 @@ This section defines what it means for a runtime to “compile” and “run” 
    - Duplicate agent names or duplicate function names are validation errors.
    - `import ... from ...`, `agent`, `def`, `export`, and `from ... import ...` are **module-scope only**; using them inside blocks or inside a `def` is a validation error.
    - Validate template literals (Section 5.2): malformed placeholders are errors, and unknown placeholder names are errors.
+   - When module contracts are statically known, validate output property access against callee exports (`E114` on missing output key).
 
 4. **Execute the script**
    - Execute all remaining top-level statements in source order.
    - Statement execution is sequential.
 
 5. **Materialize exports**
-   - The module’s public API is the set of exported names (values/functions/agents).
-   - If the program is run as a script, the runtime should return exported **values**.
-   - Exported agents are configuration objects and are not run targets.
+  - The module’s public API and output contract is the set of exported names (values only).
+  - If the program is run as a script, the runtime should return exported **values**.
+  - Exported agents are invalid (`E112`).
+  - Duplicate export names are invalid (`E113`).
 
 ### 15.2 Diagnostics
 
@@ -2001,6 +2032,8 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | E110  | Input declared after executable statement |
 | E111  | Duplicate input name `{name}` |
 | E112  | Attempt to export an agent (`export @agent` not allowed) |
+| E113  | Duplicate export name `{name}` |
+| E114  | Unknown output property access on statically-known module contract |
 
 #### 15.2.3 Warning codes (non-blocking)
 
@@ -2026,6 +2059,10 @@ Some failures are inherently dynamic and occur during execution as **raised erro
 - unresolved template placeholder when rendering a template literal
 - arithmetic/comparison on unsupported types
 
+Contract note:
+- Missing output keys on statically-known module contracts SHOULD be compile-time `E114`.
+- If static checking is unavailable, missing output keys are runtime `error(kind="unknown_output")` values.
+
 #### 15.2.5 Diagnostic message shape (recommended)
 
 Recommended format:
@@ -2050,6 +2087,7 @@ Runtime errors occur during execution and are represented as error values. These
 | `missing_input` | Required module input not provided | `{name: string}` |
 | `unknown_input` | Argument doesn't match any input | `{name: string}` |
 | `module_failed` | Called module raised an error | `{module: path, error: ...}` |
+| `unknown_output` | Accessed undeclared output key from module result | `{name: string, module?: path}` |
 
 Example handling:
 
@@ -2059,6 +2097,8 @@ result = research(topic="AI")
 match result:
   case error(kind="missing_input"):
     log("Missing: " + result.data.name)
+  case error(kind="unknown_output"):
+    log("Unknown output key: " + result.data.name)
   case error(kind="module_failed"):
     log("Module error: " + result.data.module)
   case error(_):
@@ -2163,7 +2203,10 @@ and_expr       = not_expr ( "and" not_expr )* ;
 not_expr       = [ "not" ] cmp_expr ;
 cmp_expr       = add_expr ( cmp_op add_expr )* ;
 cmp_op         = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
-add_expr       = primary ( ("+" | "-") primary )* ;
+add_expr       = postfix ( ("+" | "-") postfix )* ;
+postfix        = primary ( member_access | index_access )* ;
+member_access  = "." ident ;
+index_access   = "[" expr "]" ;
 
 primary        = literal
                | ident

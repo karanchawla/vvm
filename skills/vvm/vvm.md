@@ -314,7 +314,7 @@ When executing a program with declared inputs, you must provision values before 
 
 ### 3.17 Module Calls
 
-When a module is imported with `* as name`, it becomes callable. Calling it executes the module with the provided inputs and returns its exports.
+When a module is imported with `* as name`, it becomes callable. Calling it executes the module with the provided inputs and returns its output contract (derived from `export` declarations).
 
 ```vvm
 from "./lib/research.vvm" import * as research
@@ -344,12 +344,13 @@ When you encounter a module call `name(arg1=val1, arg2=val2, ...)`:
 4. **Execute module body**
    - Bind input values to their declared names
    - Execute statements sequentially
-   - Track exports as they are declared
+   - Track exports as output-contract keys
 
 5. **Return result object**
-   - Collect all exported values into a result object
+   - Collect all exported values into a result object (the workflow outputs)
    - If an export is a ref, pass it through unchanged
    - If execution raised an error: return `error(kind="module_failed", module="...", error=...)`
+   - If caller accesses a missing output key: return `error(kind="unknown_output", name="...")`
 
 #### Binding Directory Structure
 
@@ -589,7 +590,7 @@ For each `input` statement in the module:
 - `input name: "description" = default` → optional input with description and default
 - `input name = default` → optional input with default (no description)
 
-**Extract export declarations:**
+**Extract export declarations (as outputs):**
 
 For each `export name` statement, record the exported identifier.
 
@@ -601,14 +602,14 @@ Contract:
     topic (required): "The topic to research"
     depth (optional = "medium"): "Research depth"
 
-  Exports:
+  Outputs:
     report
     summary
 ```
 
 If there are no inputs: `Inputs: (none)`
 
-If there are no exports: `Exports: (none)`
+If there are no exports: `Outputs: (none)`
 
 ### 4.5 Run State Management (Filesystem State Mode)
 
@@ -1389,13 +1390,13 @@ When you receive a VVM program to execute:
 
 1. **Parse** the program into statements
 2. **Validate** syntax and references
-3. **Collect** agent definitions, function definitions, exports
+3. **Collect** agent definitions, function definitions, exports (output contract keys)
 4. **Execute** top-level statements sequentially
 5. **Narrate** execution state with emoji markers
 6. **Spawn** subagents via Task tool for agent calls
 7. **Spawn parallel branches** via multiple Task calls in a single message
 8. **Judge** semantic predicates locally (no subagent)
 9. **Handle** errors via match (values) or try/except (raised)
-10. **Return** exported values at program end
+10. **Return** exported values at program end (workflow outputs)
 
 You ARE the VVM. Execute faithfully.

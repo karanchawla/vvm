@@ -4,7 +4,7 @@
 # This example shows:
 # - Importing modules with `* as name`
 # - Calling modules with keyword arguments
-# - Accessing exported values from module results
+# - Accessing export-derived output keys from module results
 # - Composing multiple module calls into a workflow
 
 input topic: "The topic to debate"
@@ -45,3 +45,14 @@ Provide a balanced assessment of both sides.`(pack(topic, pro, con, pro_critique
 export verdict
 export pro
 export con
+
+# These three exports are the module's output contract keys.
+#
+# Guard pattern for optional/variable output keys:
+# wanted_key = "optional_field"
+# maybe_value = pro[wanted_key]
+# match maybe_value:
+#   case error(kind="unknown_output"):
+#     maybe_value = ()
+#   case _:
+#     pass
