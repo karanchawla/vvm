@@ -28,7 +28,7 @@ Execute a VVM program. You ARE the VVM runtime.
 
 ## State Modes
 
-VVM supports two execution state modes:
+VVM supports four execution state modes:
 
 ### In-Context Mode (default)
 - All state kept in token context
@@ -42,14 +42,44 @@ VVM supports two execution state modes:
 - Saves tokens for long workflows
 - Use for: production runs, long workflows, large outputs
 
+### SQLite Mode
+- Run state written to `.vvm/runs/<run-id>/state.db`
+- Subagents write binding rows directly via `sqlite3`
+- Full outputs written to local attachments; refs point to attachment paths
+- Use for: local SQL inspection and portable single-file state
+
+### Postgres Mode
+- Run state written to configured Postgres schema
+- Subagents write binding rows directly via `psql`
+- Full outputs written to local attachments; refs point to attachment paths
+- Use for: team observability and high-parallel workflows
+
 ## Flags
 
 | Flag | Description |
 |------|-------------|
-| `--state=filesystem` | Enable filesystem state mode (artifact-backed outputs) |
+| `--state=filesystem` | Filesystem artifact-backed state |
+| `--state=sqlite` | SQLite-backed run state (`.vvm/runs/<run-id>/state.db`) |
+| `--state=postgres` | Postgres-backed run state (`VVM_POSTGRES_URL` required) |
 | `--input name="value"` | Provide input values for the program |
 | `--offline` | Disable network fetches for remote imports (cache-only mode) |
 | `--cache-only` | Alias for `--offline` |
+
+## DB Backend Configuration
+
+Set in `.vvm/.env` or environment:
+
+```env
+VVM_STATE_BACKEND=in-context
+VVM_POSTGRES_URL=postgresql://user:pass@host:5432/db
+VVM_POSTGRES_SCHEMA=vvm
+VVM_STATE_ATTACHMENT_THRESHOLD_BYTES=65536
+```
+
+Notes:
+- `VVM_POSTGRES_URL` is required for `--state=postgres`.
+- DB mode credentials are visible to subagents in direct-write mode. Use least-privilege roles.
+- Attachments are local-only in this version.
 
 ## Registry Shorthand
 

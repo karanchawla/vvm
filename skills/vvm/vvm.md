@@ -644,6 +644,33 @@ If there are no inputs: `Inputs: (none)`
 
 If there are no exports: `Outputs: (none)`
 
+### 4.4.4 State Backend Configuration
+
+State backend selection is independent from registry configuration.
+
+Supported backends:
+- `in-context` (default)
+- `filesystem`
+- `sqlite`
+- `postgres`
+
+Resolution order:
+1. Host flag `--state=<backend>`
+2. `VVM_STATE_BACKEND` environment variable
+3. Default: `in-context`
+
+Postgres configuration keys:
+- `VVM_POSTGRES_URL` (required when `--state=postgres`)
+- `VVM_POSTGRES_SCHEMA` (default: `vvm`)
+
+Attachment behavior keys (DB backends):
+- `VVM_STATE_ATTACHMENT_THRESHOLD_BYTES` (default: `65536`)
+- `VVM_STATE_ATTACHMENTS_DIR` (default: `.vvm/runs/<run-id>/attachments`)
+
+Mode-specific requirements:
+- `sqlite`: `sqlite3` CLI must be available.
+- `postgres`: `psql` CLI and reachable PostgreSQL server must be available.
+
 ### 4.5 Run State Management (Filesystem State Mode)
 
 When operating in **filesystem state mode**, the VM creates a run directory for each execution:
@@ -996,7 +1023,7 @@ To share a run for debugging:
 
 ### 4.7 Choosing a State Mode
 
-VVM supports two state modes. Choose based on your workflow characteristics.
+VVM supports four state modes. Choose based on your workflow characteristics.
 
 #### In-Context Mode (Default)
 
@@ -1032,6 +1059,36 @@ Agent outputs written to `.vvm/runs/<run-id>/bindings/`. Agent calls return ref 
 - Can inspect any intermediate output
 - Supports very long workflows
 
+#### SQLite Mode
+
+State is persisted to `.vvm/runs/<run-id>/state.db` and local attachment files.
+
+**Use when:**
+- You want SQL queries over run state on one machine
+- You want stronger run persistence than in-context mode
+- You need local inspectability with one portable DB file
+
+**Characteristics:**
+- DB-backed execution trace and binding index
+- Subagents write binding rows directly (via `sqlite3`)
+- Local attachments store full outputs; DB stores pointer metadata
+- Parallel writes may serialize under SQLite locking
+
+#### Postgres Mode
+
+State is persisted to a shared Postgres schema and local attachment files.
+
+**Use when:**
+- Team/shared observability is required
+- You run high-parallel workflows
+- External dashboards need direct SQL access
+
+**Characteristics:**
+- Networked DB state, queryable in real time
+- Subagents write binding rows directly (via `psql`)
+- Better concurrency for parallel branch writes
+- Requires least-privilege credential setup
+
 #### Switching Modes
 
 ```bash
@@ -1040,37 +1097,45 @@ Agent outputs written to `.vvm/runs/<run-id>/bindings/`. Agent calls return ref 
 
 # Explicit filesystem mode
 /vvm-run examples/my-program.vvm --state=filesystem
+
+# SQLite run state
+/vvm-run examples/my-program.vvm --state=sqlite
+
+# Postgres run state
+/vvm-run examples/my-program.vvm --state=postgres
 ```
 
 #### Decision Table
 
-| Factor | In-Context | Filesystem |
-|--------|------------|------------|
-| Agent calls | < 10 | 10+ |
-| Output sizes | Small | Any size |
-| Debugging | Limited | Full artifacts |
-| Token usage | Grows | Bounded |
-| File access | Not needed | Required |
+| Factor | In-Context | Filesystem | SQLite | Postgres |
+|--------|------------|------------|--------|----------|
+| Agent calls | < 10 | 10+ | 10+ | 10+ |
+| Output sizes | Small | Any size | Any size | Any size |
+| Debugging | Limited | Artifacts | SQL + artifacts | Shared SQL + artifacts |
+| Token usage | Grows | Bounded | Bounded | Bounded |
+| Team observability | Low | Low | Medium | High |
+| Parallel write scaling | N/A | Good | Medium | High |
+| Dependencies | None | Filesystem | `sqlite3` | `psql` + DB |
 
 ### 4.8 Scope and Limitations
 
-Filesystem state mode provides artifact-backed agent outputs. The following are explicitly out of scope:
+The following constraints apply across state backends.
 
-#### Database Backends
+#### Object Store Attachments
 
-State is stored in the local filesystem only. Database backends (SQLite, PostgreSQL) are not supported. For distributed or persistent state, copy run directories manually.
+Attachment storage is local-only in this version. Object stores (S3/GCS/MinIO) are out of scope.
 
 #### Binary and Large Attachments
 
-Binding files are markdown text. Binary files (images, PDFs) and very large outputs (> 10MB) should be handled by the agent writing to a separate location and including a path reference.
+Large outputs should be written to local attachment files and referenced by path. Inline DB storage of large blobs is intentionally avoided by default.
 
 #### Durable Resume
 
 Runs cannot be resumed after interruption. If a run fails partway through, you must re-run from the beginning. The `state.md` trace helps identify where failure occurred.
 
-#### Ref URI Scheme
+#### Cross-Machine Ref Portability
 
-Refs use filesystem paths (`.vvm/runs/<id>/bindings/b000001.md`). There is no URI scheme (`vvm://...`) for cross-machine or network references.
+Refs may include backend-specific locator metadata. They are only portable when the referenced local attachment paths or DB records are accessible in the target environment.
 
 #### Transcript Logging
 
@@ -1217,6 +1282,198 @@ When a join threshold is met before all branches complete:
 **Late completion artifacts:**
 
 When a cancelled branch completes late, its binding file still exists on disk. This is intentional—the subagent did the work, and you might want to inspect it for debugging. The file just isn't included in the result object.
+
+### 4.10 SQLite State Backend (Direct Subagent Writes)
+
+When you run with `--state=sqlite`, runtime state is stored in:
+
+```
+.vvm/runs/<run-id>/
+  program.vvm
+  state.db
+  attachments/
+    b000001.md
+    p001_research.md
+    ...
+```
+
+#### 4.10.1 Schema (MVP)
+
+Required tables:
+- `meta(key TEXT PRIMARY KEY, value TEXT)` (`schema_version` required)
+- `run(id TEXT PRIMARY KEY, status TEXT, started_at TEXT, updated_at TEXT, state_mode TEXT)`
+- `execution(id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT, statement_index INTEGER, statement_text TEXT, status TEXT, metadata TEXT, started_at TEXT, completed_at TEXT, error_message TEXT, parent_id INTEGER)`
+- `bindings(name TEXT, run_id TEXT, execution_id INTEGER NOT NULL DEFAULT -1, kind TEXT, value_preview TEXT, summary TEXT, attachment_path TEXT, bytes INTEGER, mime TEXT, hash TEXT, created_at TEXT, updated_at TEXT, PRIMARY KEY(name, run_id, execution_id))`
+- `imports(alias TEXT, run_id TEXT, source TEXT, resolved_url TEXT, content_hash TEXT, resolved_at TEXT, PRIMARY KEY(alias, run_id))`
+
+Schema versioning:
+- `meta.schema_version` is mandatory.
+- Migrations are forward-only.
+- Runtime applies best-effort migrations before execution starts.
+- Root scope uses `execution_id = -1` (not `NULL`) for stable primary keys and upserts.
+
+#### 4.10.2 Write Ownership
+
+- VM owns: `run`, `execution`, `imports`, and startup/migration checks.
+- Subagents own: `bindings` writes (direct DB writes), plus local attachment files for full outputs.
+
+Subagent return payload remains pointer-only:
+
+```text
+Binding written: research
+Locator: sqlite bindings(name='research', run_id='<run-id>', execution_id=-1)
+Attachment: .vvm/runs/<run-id>/attachments/b000001.md
+Summary: <1-3 sentences>
+```
+
+#### 4.10.3 Subagent Binding Contract (SQLite)
+
+Each spawned subagent receives:
+- DB path: `.vvm/runs/<run-id>/state.db`
+- binding key (`name`, `run_id`, `execution_id`)
+- required attachment path (local)
+
+Contract:
+1. Write full output to attachment file at the provided path.
+2. Upsert one row into `bindings` with summary + attachment pointer metadata.
+3. Return confirmation only (no full output in chat).
+
+Example upsert:
+
+```bash
+sqlite3 ".vvm/runs/<run-id>/state.db" "
+INSERT OR REPLACE INTO bindings
+  (name, run_id, execution_id, kind, value_preview, summary, attachment_path, bytes, mime, hash, updated_at)
+VALUES
+  ('research', '<run-id>', -1, 'let', 'Top findings...', 'Top findings from 8 papers...', '.vvm/runs/<run-id>/attachments/b000001.md', 48321, 'text/markdown', 'sha256:...', datetime('now'));
+"
+```
+
+#### 4.10.4 Ref Values in SQLite Mode
+
+Returned refs should include backend locator metadata:
+
+```vvm
+{
+  ref: ".vvm/runs/<run-id>/attachments/b000001.md",
+  backend: "sqlite",
+  run_id: "<run-id>",
+  binding: "research",
+  execution_id: -1,
+  db_path: ".vvm/runs/<run-id>/state.db",
+  summary: "Top findings from 8 papers...",
+  mime: "text/markdown",
+  bytes: 48321
+}
+```
+
+Downstream agents use `ref` for full-content reads and may query sqlite metadata when needed.
+
+#### 4.10.5 Parallel Behavior in SQLite Mode
+
+Parallel semantics are unchanged. Each branch writes to a distinct binding key and attachment path (`p<block>_<name>`). SQLite may serialize some writes under lock contention; this is expected.
+
+### 4.11 Postgres State Backend (Direct Subagent Writes)
+
+When you run with `--state=postgres`, runtime state is stored in a shared Postgres schema plus local attachments.
+
+Configuration:
+- `VVM_POSTGRES_URL` (required)
+- `VVM_POSTGRES_SCHEMA` (default `vvm`)
+
+#### 4.11.1 Schema (MVP)
+
+Schema mirrors SQLite logical tables (`meta`, `run`, `execution`, `bindings`, `imports`) with Postgres-native types (`TIMESTAMPTZ`, `JSONB` where useful).
+
+Recommended indexes:
+- `execution(run_id, status)`
+- `execution(run_id, parent_id)`
+- `bindings(run_id, execution_id)`
+- `bindings(run_id, name)`
+
+#### 4.11.2 Security Model
+
+Postgres credentials are visible to subagents in this mode (required for direct writes). Use:
+- dedicated database/schema
+- least-privilege role limited to that schema
+- no production-shared credentials
+
+#### 4.11.3 Subagent Binding Contract (Postgres)
+
+Each spawned subagent receives:
+- connection string
+- schema name
+- binding key (`name`, `run_id`, `execution_id`)
+- required local attachment path
+
+Contract:
+1. Write full output to local attachment path.
+2. Upsert one row into `<schema>.bindings` with summary + pointer metadata.
+3. Return confirmation only.
+
+Example upsert:
+
+```bash
+psql "$VVM_POSTGRES_URL" -c "
+INSERT INTO vvm.bindings
+  (name, run_id, execution_id, kind, value_preview, summary, attachment_path, bytes, mime, hash, updated_at)
+VALUES
+  ('research', '<run-id>', -1, 'let', 'Top findings...', 'Top findings from 8 papers...', '.vvm/runs/<run-id>/attachments/b000001.md', 48321, 'text/markdown', 'sha256:...', NOW())
+ON CONFLICT (name, run_id, execution_id)
+DO UPDATE SET
+  value_preview = EXCLUDED.value_preview,
+  summary = EXCLUDED.summary,
+  attachment_path = EXCLUDED.attachment_path,
+  bytes = EXCLUDED.bytes,
+  mime = EXCLUDED.mime,
+  hash = EXCLUDED.hash,
+  updated_at = NOW();
+"
+```
+
+#### 4.11.4 Ref Values in Postgres Mode
+
+```vvm
+{
+  ref: ".vvm/runs/<run-id>/attachments/p001_research.md",
+  backend: "postgres",
+  run_id: "<run-id>",
+  binding: "research",
+  execution_id: -1,
+  db_schema: "vvm",
+  summary: "Top findings from 8 papers...",
+  mime: "text/markdown",
+  bytes: 48321
+}
+```
+
+#### 4.11.5 Parallel Behavior in Postgres Mode
+
+Parallel semantics are unchanged. Because branch writes target separate rows, Postgres usually avoids serialization bottlenecks seen in SQLite-heavy parallel writes.
+
+### 4.12 Backend Validation and Failures
+
+Startup checks:
+1. Resolve backend from flags/env/default.
+2. Validate backend prerequisites (`sqlite3` / `psql` + URL).
+3. Initialize or migrate schema.
+4. Fail fast if checks fail.
+
+Failure handling guidance:
+- Backend unavailable/misconfigured: halt before execution begins.
+- Subagent binding write failure: return `error(kind="binding_failed")`.
+- Attachment write failure: return `error(kind="attachment_write_failed")`.
+- DB read/verification failure: return `error(kind="state_read_failed")`.
+
+Recommended diagnostics:
+- `E096`: unknown or unsupported backend
+- `E097`: sqlite backend unavailable
+- `E098`: postgres backend unavailable
+- `E099`: state backend read/write or migration failure
+
+Smoke-test helpers:
+- `scripts/sqlite-smoke-test.sh .vvm/runs/<run-id>/state.db`
+- `VVM_POSTGRES_URL=... scripts/postgres-smoke-test.sh <run-id>`
 
 ---
 

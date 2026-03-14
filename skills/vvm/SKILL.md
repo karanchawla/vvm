@@ -3,7 +3,7 @@ name: vvm
 description: |
   VVM (Vibe Virtual Machine) is a language for agentic programs where the LLM is the runtime.
 
-  Activate when: running .vvm files, mentioning VVM, calling /vvm-boot, /vvm-run, /vvm-compile, /vvm-registry-inspect,
+  Activate when: running .vvm files, mentioning VVM, calling /vvm-boot, /vvm-run, /vvm-compile, /vvm-run-inspect, /vvm-registry-inspect,
   /vvm-generate, or orchestrating multi-agent workflows. Read spec.md for the language specification
   and vvm.md for execution semantics.
 ---
@@ -18,7 +18,7 @@ VVM (Vibe Virtual Machine) is a language for writing agentic programs where the 
 
 Activate this skill when:
 
-1. User runs `/vvm-boot`, `/vvm-compile`, `/vvm-run`, `/vvm-registry-inspect`, or `/vvm-generate`
+1. User runs `/vvm-boot`, `/vvm-compile`, `/vvm-run`, `/vvm-run-inspect`, `/vvm-registry-inspect`, or `/vvm-generate`
 2. User opens or references a `.vvm` file
 3. User asks about VVM syntax, semantics, or patterns
 4. User wants to create an AI-powered workflow
@@ -271,6 +271,10 @@ Validate a VVM program without executing. Reports errors and warnings with line 
 ### /vvm-run <file.vvm>
 
 Execute a VVM program. You become the VVM runtime and execute statements sequentially, spawning subagents for agent calls.
+
+### /vvm-run-inspect <run-id>
+
+Inspect run state from filesystem, SQLite, or Postgres backends without re-running the workflow.
 
 ### /vvm-registry-inspect <@handle/slug|https://...>
 

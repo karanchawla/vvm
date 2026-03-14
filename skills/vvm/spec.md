@@ -278,7 +278,7 @@ Recommended portable shape:
 Notes:
 - Only `ref` is required; other keys are optional.
 - This is parallel to how error values are recognized by shape (Section 3.2).
-- Ref values are returned by agent calls in **filesystem state mode** (Section 3.4.2A).
+- Ref values are returned by agent calls in artifact-backed state modes (Section 3.4.2A).
 - The `summary` field MUST be bounded (1–3 sentences) to prevent token bloat.
 
 ### 3.3 Agents
@@ -388,32 +388,52 @@ To evaluate `@agent `template`(...)`:
 
 #### 3.4.2A State Mode and Output Type
 
-The runtime operates in one of two **state modes**:
+The runtime operates in one of four **state modes**:
 
 | Mode | Agent call returns | State storage |
 |------|-------------------|---------------|
 | **in-context** (default) | string | Token context only |
 | **filesystem** | ref value | `.vvm/runs/<run-id>/` |
+| **sqlite** | ref value | `.vvm/runs/<run-id>/state.db` + local attachments |
+| **postgres** | ref value | Postgres schema + local attachments |
 
 In **in-context mode** (today's default), agent calls return a **string** (the subagent's final response text).
 
-In **filesystem state mode**, agent calls return a **ref value** (Section 3.2.5). The VM instructs subagents to write full output to a binding file and return only a confirmation + bounded summary.
+In artifact-backed modes (`filesystem`, `sqlite`, `postgres`), agent calls return a **ref value** (Section 3.2.5). The VM instructs subagents to write full output to durable storage and return only a confirmation + bounded summary.
 
 Mode selection:
 - Default: in-context (backward compatible)
-- Override: `--state=filesystem` flag
+- Override: `--state=<in-context|filesystem|sqlite|postgres>`
 
 #### 3.4.3 Result value
 
 A successful agent call yields:
 - **in-context mode**: a **string** (the subagent's final response text)
-- **filesystem state mode**: a **ref value** (Section 3.2.5)
+- **filesystem/sqlite/postgres modes**: a **ref value** (Section 3.2.5)
 
 Notes:
 - Hosts/tools may provide richer result objects; runtimes SHOULD normalize them to the mode-specific return shape.
 - VVM 0.0.4 does not automatically parse JSON or VVM literals out of that text. If you want structured outputs, ask the agent to return a structured format and treat it as text (future versions may add parsing helpers).
 
-#### 3.4.3A Template Interpolation of Ref Values
+#### 3.4.3A DB-backed state modes (sqlite/postgres)
+
+In `sqlite` and `postgres` modes:
+- Subagents write binding records directly to the configured DB backend.
+- Full output content is stored in local attachment files by default.
+- DB rows store binding metadata and pointers (e.g., `attachment_path`, summary, bytes, mime, hash).
+- Root scope SHOULD use a stable execution-scope sentinel (recommended: `execution_id=-1`) for deterministic upserts.
+
+Security guidance:
+- Do not persist full prompt/response transcripts by default.
+- In postgres mode, credentials passed to subagents MUST be least-privilege and schema-scoped.
+
+Portable configuration keys:
+- `VVM_STATE_BACKEND` (`in-context|filesystem|sqlite|postgres`)
+- `VVM_POSTGRES_URL` (required for postgres mode)
+- `VVM_POSTGRES_SCHEMA` (default: `vvm`)
+- `VVM_STATE_ATTACHMENT_THRESHOLD_BYTES` (default host-defined; recommended `65536`)
+
+#### 3.4.3B Template Interpolation of Ref Values
 
 When interpolating a ref value into a template (e.g., `{}` or `{name}`), the VM MUST use a **small, safe preview**, not the full artifact content.
 
@@ -1330,7 +1350,9 @@ Offline mode does not change domain/protocol validation rules; those still apply
 
 #### 11.3.5 Hash Pinning
 
-In filesystem state mode, the runtime records content hashes of all imported modules in `.vvm/runs/<run-id>/imports.json`:
+In filesystem state mode, the runtime records content hashes of all imported modules in `.vvm/runs/<run-id>/imports.json`.
+
+In `sqlite` and `postgres` state modes, runtimes MUST persist equivalent import provenance in backend state tables (for example, an `imports` table keyed by run and alias/source).
 
 ```json
 {
@@ -1657,9 +1679,11 @@ Cancellation is best-effort for portability across hosts. When you reach a join 
 
 This gives you deterministic results regardless of how the host handles cancellation.
 
-#### 12.5.7 Filesystem State Mode
+#### 12.5.7 Artifact-Backed State Modes
 
-When you run with `--state=filesystem`, each parallel branch:
+When you run with artifact-backed state, each parallel branch writes to a durable binding target and returns a ref value.
+
+Filesystem mode:
 
 1. **Gets a unique execution ID**: `p<block>_<name>` (e.g., `p001_research`)
 2. **Writes output to**: `.vvm/runs/<run-id>/bindings/p<block>_<name>.md`
@@ -1679,6 +1703,11 @@ parallel() as results:
 ```
 
 This keeps your context bounded even when branches produce large outputs.
+
+SQLite/Postgres modes:
+- Branches use distinct DB binding keys (`name`, `run_id`, execution scope) and local attachment paths.
+- Parallel semantics (`join`, `count`, `on_fail`, cancellation behavior) are unchanged.
+- Postgres SHOULD scale parallel branch writes better than SQLite due to row-level locking.
 
 #### 12.5.8 When to Use Parallel Blocks
 
@@ -2051,6 +2080,10 @@ These identifiers MUST NOT be used as user-defined names (variables, functions, 
 | E093  | Invalid URL format (malformed or unsupported scheme like `file://`) |
 | E094  | Cache integrity error (stored hash doesn't match content) |
 | E095  | Offline/cache-only mode cache miss for remote import |
+| E096  | Unknown or unsupported state backend |
+| E097  | SQLite backend unavailable (missing `sqlite3` or init failed) |
+| E098  | Postgres backend unavailable (connection/auth/schema failure) |
+| E099  | State backend read/write or migration failure |
 | E100  | Duplicate branch name in parallel block |
 | E101  | Invalid `join` value (must be `"all"`, `"first"`, or `"any"`) |
 | E102  | `count` option only valid with `join="any"` |
@@ -2111,6 +2144,10 @@ Runtime errors occur during execution and are represented as error values. These
 | `timeout` | Agent call exceeded timeout | `{elapsed: ms}` |
 | `rejected` | Model refused to complete | `{reason: string}` |
 | `binding_failed` | Agent failed to write binding | — |
+| `attachment_write_failed` | Agent failed to write local attachment file | `{path?: string}` |
+| `state_backend_unavailable` | Backend setup failed (sqlite/postgres) | `{backend: string, reason: string}` |
+| `state_read_failed` | Failed to read or verify persisted state | `{backend: string, locator?: string}` |
+| `state_write_failed` | Failed to persist run or binding state | `{backend: string, operation?: string}` |
 | `constraint_violation` | Constraint requirements not met | `{violations: [...]}` |
 | `thrown` | User code raised an error | `{message: string}` |
 | `missing_input` | Required module input not provided | `{name: string}` |
