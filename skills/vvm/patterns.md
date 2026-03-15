@@ -357,6 +357,33 @@ analysis = @analyzer `Analyze these key points.`(summary)
 
 ---
 
+### State Mode Selection by Workload
+
+**Problem:** Programs are authored without considering runtime state mode, causing token blowups or weak observability in production.
+
+**Solution:** Design programs to be state-mode portable, then choose backend at run-time based on workload.
+
+```vvm
+# Keep agent boundaries ref-friendly so this program works in all state modes.
+agent researcher(model="sonnet")
+agent writer(model="sonnet")
+
+research = @researcher `Research {topic} with sources.`(topic)
+report = @writer `Write report from this research.`(research)
+
+export report
+```
+
+**Backend guidance:**
+- `in-context`: quick iteration, small workflows
+- `filesystem`: large outputs and artifact inspection
+- `sqlite`: local SQL-debuggable run state
+- `postgres`: team observability and high-concurrency workflows
+
+**Key idea:** Keep data flow structured and artifact-friendly so switching `--state=` does not require code changes.
+
+---
+
 ## Reliability Patterns
 
 ### Persistent Agent Memory (Digest + Ledger)
@@ -491,6 +518,32 @@ def process_safely(input):
 
 ---
 
+### Inspect-Driven Recovery
+
+**Problem:** Long workflows fail but teams lack a consistent recovery loop, so they rerun blindly.
+
+**Solution:** Treat run inspection as a first-class phase in reliability workflows.
+
+```vvm
+agent inspector(
+  model="haiku",
+  permissions=perm(read=[".vvm/runs/**"], write=[], bash="deny", network="deny"),
+  prompt="Summarize run failures with statement-level evidence."
+)
+
+run_id = "20260315-102055-a1b2c3"
+summary = @inspector `Inspect run artifacts for failures and likely root causes.`(".vvm/runs/" + run_id)
+
+export summary
+```
+
+**Operational guidance:**
+- Use `/vvm-run-inspect <run-id>` during incident response.
+- In sqlite/postgres modes, query run/execution/bindings tables for precise failure localization.
+- Feed inspection output back into targeted repair steps instead of full blind reruns.
+
+---
+
 ## Composition Patterns
 
 ### Conditional Branching
@@ -601,6 +654,58 @@ business = analyze(data=report, focus="business")
 
 ---
 
+### Contract-Safe Output Access
+
+**Problem:** Callers assume output keys exist and crash when module contracts evolve.
+
+**Solution:** Treat module outputs as explicit contracts and guard optional keys.
+
+```vvm
+from "./lib/analyze.vvm" import * as analyze
+
+result = analyze(data=report, focus="security")
+primary = result.analysis
+
+# Guard optional/unstable keys
+maybe_extra = result["extra_notes"]
+match maybe_extra:
+  case error(kind="unknown_output"):
+    maybe_extra = ()
+  case _:
+    pass
+
+export primary
+export maybe_extra
+```
+
+**When to use:**
+- shared libraries with evolving contracts
+- remote/registry modules where producer and consumer evolve independently
+
+---
+
+### Contract-First Remote Workflow Reuse
+
+**Problem:** Teams import remote workflows directly in production without validating trust, cache, or contracts.
+
+**Solution:** Use registry/URL modules with explicit contract-first onboarding.
+
+```vvm
+from "@team/pr/review" import * as review_workflow
+
+result = review_workflow(pr_url=pr_url, strict=true)
+report = result.report
+
+export report
+```
+
+**Operational guidance:**
+- Inspect remote contracts before rollout with `/vvm-registry-inspect`.
+- Enforce allowlist/denylist and HTTPS policy.
+- Use offline/cache-only mode in CI for reproducible builds.
+
+---
+
 ### Module Pipeline
 
 **Problem:** Multi-stage workflow where each stage is distinct and reusable.
@@ -692,14 +797,18 @@ climate_report = results[2].report
 | Model Tiering | Optimizing cost/capability |
 | Early Termination | Avoiding unnecessary work |
 | Context Minimization | Large inputs |
+| State Mode Selection | Matching backend to workload and observability needs |
 | Persistent Agent Memory | Cross-run continuity |
 | Graceful Degradation | Handling failures |
 | Retry with Backoff | Transient failures |
 | Constraint Validation | Quality enforcement |
 | Defensive Validation | Input checking |
+| Inspect-Driven Recovery | Failure triage from run artifacts/backends |
 | Conditional Branching | Different processing paths |
 | Iterative Refinement | Quality improvement |
 | Module Organization | Large programs |
 | Parameterized Module | Reusable workflows with inputs |
+| Contract-Safe Output Access | Handling evolving module output contracts |
+| Contract-First Remote Workflow Reuse | Safe registry/URL-based module composition |
 | Module Pipeline | Multi-stage workflows |
 | Parallel Module Calls | Concurrent module invocations |

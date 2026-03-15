@@ -5,7 +5,7 @@ argument-hint: <description of what you want to build>
 
 # VVM Generate
 
-Generate well-structured VVM programs from natural language descriptions. This command helps users transition from natural language prompting to VVM's structured agent orchestration.
+Generate well-structured VVM programs from natural language descriptions. This command helps users transition from natural language prompting to VVM's structured agent orchestration, including modern VVM features (parallel blocks, artifact-backed state modes, registry imports, and callable module contracts).
 
 ## Phases
 
@@ -25,7 +25,7 @@ Map the user's intent to VVM constructs:
 
 | User Intent | VVM Construct |
 |-------------|---------------|
-| "Call an AI to do X" | `@agent \`prompt\`(input)` |
+| "Call an AI to do X" | `@worker \`prompt\`(request)` |
 | "Check if X is true" | `?\`condition\`(value)` |
 | "Route based on content type" | `match value: case ?\`pattern\`:` |
 | "AI picks best approach" | `choose value by ?\`criterion\` as choice:` |
@@ -33,18 +33,24 @@ Map the user's intent to VVM constructs:
 | "Repeat until done" | `while` with bounds or `refine()` |
 | "Process each item" | `for item in items:` |
 | "Process items in parallel" | `pmap(items, function)` |
+| "Run different tasks concurrently" | `parallel(...) as results:` with named branches |
+| "Race multiple strategies" | `parallel(join="first", on_fail="continue")` |
+| "Need N-of-M consensus" | `parallel(join="any", count=N, on_fail="continue")` |
 | "Set context for operations" | `with input value:` |
 | "Handle failures gracefully" | `match` on `error(_)` |
 | "Guaranteed cleanup" | `try`/`except`/`finally` |
 | "Create agent variants" | `.with()` or inline `@{...}` |
 | "Reuse logic" | `def function(params):` |
 | "Use external tools" | `import` + `skills=` + `permissions=` |
+| "Reusable workflow API" | `input ...` + `export ...` + callable module import (`* as`) |
+| "Use shared remote workflow" | `from "@handle/slug" import ...` or `from "https://..." import ...` |
 | "Transform a list" | `map(items, fn)` |
 | "Filter a list" | `filter(items, predicate)` |
 | "Aggregate results" | `reduce(items, fn, init=value)` |
 | "Combine multiple values" | `pack(a, b, c)` |
 | "Iteratively improve" | `refine(seed, max=N, done=check, step=improve)` |
 | "Enforce quality standards" | `constrain value(): require ?\`criterion\`` |
+| "Large outputs or long workflows" | Keep agent boundaries ref-friendly (portable across `--state=` backends) |
 
 ### Phase 3: Design Architecture
 
@@ -53,10 +59,12 @@ Map the user's intent to VVM constructs:
    - `haiku`: Simple formatting, validation, extraction, classification
    - `sonnet`: Research, analysis, standard generation (default)
    - `opus`: Complex reasoning, synthesis, critical decisions
-3. **Plan data flow** — How does data move between stages?
-4. **Identify parallelism** — Which tasks are independent? Use `pmap()`
-5. **Plan error handling** — What can fail? Add `retry=`, match on `error()`
-6. **Add quality gates** — Use `constrain`/`require` for critical outputs
+3. **Decide program shape** — Script-style run vs callable module contract (`input` + `export`)
+4. **Plan data flow** — How does data move between stages? Keep it structured/ref-friendly
+5. **Identify parallelism** — Use `pmap` for homogeneous list work; use `parallel()` for heterogeneous branches/races/voting
+6. **Plan state mode portability** — Author code that works in in-context and artifact-backed modes
+7. **Plan error handling** — What can fail? Add `retry=`, match on `error()`, and fallbacks
+8. **Add quality and observability hooks** — Use `constrain`/`require`; include outputs useful for run inspection
 
 ### Phase 4: Generate Code
 
@@ -64,9 +72,12 @@ Map the user's intent to VVM constructs:
 - Agent Specialization: Each agent has one clear purpose
 - Pipeline Composition: Clear I/O at each stage
 - Model Tiering: Right model for task complexity
+- State Mode Selection: Keep workflows portable across `in-context|filesystem|sqlite|postgres`
+- Parallel Block Patterns: `parallel()` for heterogeneous concurrent work, races, and N-of-M voting
 - Explicit Data Flow: Don't over-rely on implicit `it`
 - Graceful Degradation: Handle failures with fallbacks
 - Bounded Iteration: Always set max limits on loops
+- Contract-Safe Composition: Use explicit `input`/`export` surfaces and guard optional outputs when needed
 
 **Avoid these anti-patterns** (from `skills/vvm/antipatterns.md`):
 - God Agent: One agent doing everything (split into specialists)
@@ -74,27 +85,41 @@ Map the user's intent to VVM constructs:
 - Unbounded Loops: No max iterations (always add bounds)
 - Model Inflation: Using opus for simple tasks (tier appropriately)
 - Silent Failures: Not handling errors (match on `error(_)`)
+- Large artifact workflows in in-context mode when scale/inspection matters
+- Blind remote imports without trust/inspect/cache policy
+- Assuming module output keys always exist across evolving contracts
 
 **Code structure:**
 ```vvm
 # 1. Skill imports (if external tools needed)
 import "skill-name" from "source"
 
-# 2. Agent definitions (specialized, model-tiered)
-agent name(model="tier", prompt="Focused expertise.")
+# 2. Module imports (optional local/registry/URL workflows)
+from "./lib/workflow.vvm" import * as workflow
 
-# 3. Helper functions (for reusable patterns)
+# 3. Inputs (for reusable/callable workflows)
+input request: "What this workflow needs"
+
+# 4. Agent definitions (specialized, model-tiered)
+agent worker(model="tier", prompt="Focused expertise.")
+
+# 5. Helper functions (for reusable patterns)
 def helper(params):
   return result
 
-# 4. Main workflow logic
-result = @agent `task`(input)
+# 6. Optional heterogeneous parallel work
+parallel(join="all", on_fail="continue") as branches:
+  a = @worker `Task A.`(request)
+  b = @worker `Task B.`(request)
 
-# 5. Quality constraints (if needed)
+# 7. Main workflow logic
+result = @worker `task`(request)
+
+# 8. Quality constraints (if needed)
 constrain result():
   require ?`quality criterion`
 
-# 6. Exports
+# 9. Exports (workflow contract surface)
 export result
 ```
 
@@ -111,7 +136,10 @@ Output the VVM program directly with no surrounding text or formatting. The resp
 - `skills/vvm/spec.md` — Language specification and grammar
 - `skills/vvm/patterns.md` — Design patterns to follow
 - `skills/vvm/antipatterns.md` — Patterns to avoid
-- `examples/` — Reference examples for similar patterns
+- `commands/vvm-run.md` — State modes, registry/offline options
+- `commands/vvm-run-inspect.md` — Inspect UX for filesystem/sqlite/postgres runs
+- `commands/vvm-registry-inspect.md` — Contract inspection for remote modules
+- `examples/` — Reference examples for similar patterns (especially 33, 34, 38, 39)
 
 ## Example
 

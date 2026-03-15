@@ -8,7 +8,7 @@
     {
       "name": "vvm",
       "source": "./",
-      "description": "A language for agentic programs where the LLM is the runtime"
+      "description": "A DSL for agentic workflows where the LLM is the runtime"
     }
   ]
 }

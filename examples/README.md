@@ -26,7 +26,7 @@ State mode examples:
 
 ## Inventory Status
 
-Current runnable examples in this folder: `01-13`, `15-38` (`14` is intentionally unused).
+Current runnable examples in this folder: `01-13`, `15-39` (`14` is intentionally unused).
 
 ## Core Language and Control Flow
 
@@ -59,6 +59,7 @@ Current runnable examples in this folder: `01-13`, `15-38` (`14` is intentionall
 | 21 | [devils-advocate](21-devils-advocate.vvm) | Adversarial debate and synthesis |
 | 22 | [full-research-pipeline](22-full-research-pipeline.vvm) | End-to-end multi-agent PR review pipeline |
 | 23 | [ralph-wiggum-loop](23-ralph-wiggum-loop.vvm) | Autonomous iterative shipping loop |
+| 39 | [pr-babysitter](39-pr-babysitter.vvm) | Continuous autonomous PR maintenance until merge |
 
 ## Persistent Memory Patterns
 
@@ -130,3 +131,4 @@ Examples mapped to common agentic patterns:
 | Autonomous Agent | 23 |
 | Memory-safe Parallelism | 27, 35 |
 | Recursive Decomposition (RLM) | 38 |
+| Autonomous PR Operations | 39 |

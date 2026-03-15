@@ -1,233 +1,116 @@
 # VVM
 
-**Vibe Virtual Machine** — A language for agentic programs where the LLM is the runtime.
+**Vibe Virtual Machine** is a DSL for agentic workflows where the LLM is the runtime.
 
-```vvm
-# A code review bot that iteratively improves until approved
-agent coder(model="sonnet", prompt="Write clean, well-tested code.")
-agent reviewer(model="opus", prompt="Review code critically. Find bugs and issues.")
+VVM gives you:
+- explicit agent boundaries (`@agent ...`)
+- semantic control flow (`?`, `match`, `choose`)
+- explicit concurrency (`pmap`, `parallel(join=..., on_fail=...)`)
+- reusable workflow contracts (`input`, `export`, callable modules)
+- scalable state backends (`in-context`, `filesystem`, `sqlite`, `postgres`)
 
-def is_approved(code, i):
-  review = @reviewer `Review this code. Say APPROVED if production-ready.`(code)
-  return ?`contains APPROVED`(review)
+The language spec is in [skills/vvm/spec.md](skills/vvm/spec.md) (v`0.0.4`).
 
-def improve(code, i):
-  feedback = @reviewer `List specific issues with this code.`(code)
-  return @coder `Fix these issues: {feedback}`(pack(code, feedback))
+## Quick Start
 
-final_code = refine(initial_code, max=5, done=is_approved, step=improve)
-
-constrain final_code():
-  require ?`has error handling`
-  require ?`includes unit tests`
-
-export final_code
-```
-
----
-
-## The Insight
-
-A language model with tool access is a general-purpose computer. Not metaphorically. Literally.
-
-Every time you use Claude Code, Cursor, or Codex, you're instructing a machine that reads files, writes code, executes commands, and iterates on its outputs. We've been calling these "assistants" because we didn't have better words. But assistants don't spawn subprocesses or manage their own control flow.
-
-**The problem with English.** Simple tasks work fine—"refactor this function" needs no specification. Complex tasks fall apart. You want three analyses to run in parallel, feed into a synthesis, retry on failure, and only proceed if the output meets a quality bar. You can say that in English. But which parts are instructions and which are suggestions? Which are hard constraints and which are preferences? English handles intent well. It can't handle structure.
-
-**Inversion.** Most frameworks (LangChain, etc.) put orchestration in your code and treat the model as a function to call. VVM inverts this. You write a program, hand it to the model, and the model becomes the runtime. The intelligence doesn't just execute steps—it interprets the program, manages dependencies, decides how to proceed when things go wrong.
-
-**Predicates that understand.** When orchestration lives in Python, conditions must be things Python can compute—proxy metrics like `if confidence_score > 0.8`. When orchestration lives in the model, conditions can be semantic. "Is this production ready?" isn't a threshold. It's a question the runtime answers by reading and judging. The program operates in meaning-space.
-
-VVM is open source and runtime-agnostic. Today it runs on Claude Code. Codex, Amp, and OpenCode support is planned.
-
----
-
-## Installation
-
-VVM runs as a Claude Code plugin. To install:
+Install as a Claude Code plugin:
 
 ```bash
-# Add the plugin marketplace
 claude plugin marketplace add https://github.com/karanchawla/vvm.git
-
-# Install the plugin
 claude plugin install vvm@vvm
 ```
 
-After installation, ask Claude to help you get started:
+Then:
 
-> "Run my first VVM example and teach me how it works"
+```bash
+/vvm-boot
+/vvm-compile examples/01-hello-world.vvm
+/vvm-run examples/01-hello-world.vvm
+```
 
-Claude will walk you through the language, run an example program, and explain the execution.
+For scalable runs:
 
----
+```bash
+/vvm-run examples/39-pr-babysitter.vvm --state=filesystem
+/vvm-run examples/38-rlm-diff-time-machine.vvm --state=sqlite
+```
 
-## The Language
-
-### Agents
-
-Named agents with models and system prompts:
+## Minimal Example
 
 ```vvm
-agent researcher(model="sonnet", prompt="Research expert. Always cite sources.")
-agent writer(model="opus", prompt="Technical writer. Clear and concise.")
+input topic: "Topic to research"
 
-research = @researcher `Find papers on quantum error correction.`(())
-report = @writer `Summarize the key findings.`(research)
+agent researcher(model="sonnet", prompt="Research expert.")
+agent writer(model="sonnet", prompt="Clear technical writer.")
+
+research = @researcher `Research {topic} and cite evidence.`(topic)
+report = @writer `Write an executive summary.`(research)
+
+export report
 ```
 
-### Agent Memory
+## Command Surface
 
-Portable, file-backed persistence for stateful agents:
+| Command | Purpose |
+|---|---|
+| `/vvm-boot` | Initialize and guide first workflow |
+| `/vvm-compile <file.vvm>` | Parse/validate without executing |
+| `/vvm-run <file.vvm>` | Execute workflow |
+| `/vvm-run-inspect <run-id>` | Inspect run state (filesystem/sqlite/postgres) |
+| `/vvm-registry-inspect <source>` | Inspect remote workflow contract + cache metadata |
+| `/vvm-generate <description>` | Generate VVM from natural language |
 
-```vvm
-agent assistant(
-  model="sonnet",
-  prompt="Helpful assistant.",
-  memory={ scope: "project", key: "user:alice" },
-)
+See command docs in [commands/](commands).
 
-reply = @assistant `Continue helping @Alice.`(request)
-dry = @assistant `Use memory but don't write.`(request, memory_mode="dry_run")
-fresh = @assistant `Ignore memory.`(request, memory_mode="fresh")
-```
+## State Backends
 
-### Semantic Predicates
+| Mode | Return Type | Best For |
+|---|---|---|
+| `in-context` | strings | quick local iteration |
+| `filesystem` | ref values | long runs, artifact debugging |
+| `sqlite` | ref values | local SQL-inspectable state |
+| `postgres` | ref values | team observability, high concurrency |
 
-Conditions evaluated by the runtime's judgment, not regex:
+Backends are selected with `--state=...` on `/vvm-run`.
 
-```vvm
-if ?`contains sensitive information`(document):
-  document = @redactor `Remove PII and confidential data.`(document)
-```
+## Remote Modules and Registry
 
-### Pattern Matching
+VVM supports:
+- local modules: `from "./lib/x.vvm" import ...`
+- URL modules: `from "https://..." import ...`
+- registry shorthand: `from "@handle/slug" import ...`
 
-Route based on meaning:
-
-```vvm
-match ticket:
-  case ?`billing or payment issue`:
-    team = "billing"
-  case ?`security concern`:
-    team = "security"
-  case _:
-    team = "general"
-```
-
-### Constraints
-
-Requirements with automatic retry on failure:
-
-```vvm
-constrain draft(attempts=3):
-  require ?`cites at least 3 sources`
-  require ?`no unsubstantiated claims`
-  require ?`professional tone`
-```
-
-### Parallelism
-
-Explicit, never implicit:
-
-```vvm
-def translate(text):
-  return @translator `Translate to French.`(text)
-
-translations = pmap(documents, translate)  # Runs in parallel
-```
-
-### Refinement Loops
-
-Iterate until done:
-
-```vvm
-final = refine(
-  seed=first_draft,
-  max=5,
-  done=is_publication_ready,
-  step=incorporate_feedback
-)
-```
-
----
-
-## Execution Model
-
-1. **Parse** — Read `.vvm`, build AST
-2. **Validate** — Check syntax, resolve references, verify constraints
-3. **Execute** — Run statements top-to-bottom, eagerly
-4. **Spawn** — Agent calls (`@agent`) spawn subagents via Task tool
-5. **Evaluate** — Semantic predicates (`?`...``) judged by the runtime
-6. **Export** — Return declared exports
-
-```
-┌─────────────────────────────────────────────────┐
-│                   VVM Runtime                   │
-│                  (Claude LLM)                   │
-├─────────────────────────────────────────────────┤
-│  .vvm Program                                   │
-│  ├── agent definitions                          │
-│  ├── function definitions                       │
-│  └── top-level statements                       │
-├─────────────────────────────────────────────────┤
-│  Execution                                      │
-│  ├── @agent calls → spawn subagent (Task tool) │
-│  ├── ?`predicate` → local semantic judgment    │
-│  └── control flow → sequential, explicit       │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `/vvm-boot` | Initialize VVM, create first program |
-| `/vvm-compile <file>` | Validate without running |
-| `/vvm-run <file>` | Execute a program |
-| `/vvm-run-inspect <run-id>` | Inspect persisted run state across supported backends |
-| `/vvm-registry-inspect <source>` | Inspect remote workflow contract and cache metadata |
-
----
+Use:
+- `--offline` / `--cache-only` for cache-only resolution
+- `/vvm-registry-inspect` to inspect contracts before execution
 
 ## Examples
 
-The `examples/` directory has 28 programs, progressively introducing features:
+Examples are in [examples/](examples), with an up-to-date index in [examples/README.md](examples/README.md).
 
-- **01-08**: Basics (agents, predicates, control flow)
-- **09-15**: Intermediate (parallelism, modules, error handling)
-- **16-23**: Advanced (constraints, refinement loops, full pipelines)
-- **24-28**: Agent memory (persistent agents + concurrency rules)
+Current catalog includes:
+- fundamentals (`01-13`, `15-20`)
+- multi-agent orchestration (`21-23`, `32-35`, `39`)
+- memory and ref/state patterns (`24-31`)
+- workflow contracts/modules (`36-37`)
+- recursive language model pattern (`38`)
 
----
+## Repository Layout
 
-## Caveats
+| Path | Purpose |
+|---|---|
+| [skills/vvm/spec.md](skills/vvm/spec.md) | Normative language spec |
+| [skills/vvm/vvm.md](skills/vvm/vvm.md) | Runtime/execution semantics |
+| [skills/vvm/patterns.md](skills/vvm/patterns.md) | Recommended design patterns |
+| [skills/vvm/antipatterns.md](skills/vvm/antipatterns.md) | Common pitfalls |
+| [commands/](commands) | Slash-command behavior docs |
+| [examples/](examples) | Runnable reference workflows |
+| [design/](design) | Feature-gap and implementation planning docs |
 
-**This is experimental.** The language spec will change. Breaking changes are likely. Pin versions if you care about stability.
+## Status and Safety
 
-**You own your agents.** VVM programs spawn AI agents that can read files, make network requests, and execute code. Review what you're running. Test in sandboxes first. The authors disclaim liability for agent behavior—this is on you.
-
----
-
-## Repository Structure
-
-This repository contains the core VVM language:
-
-```
-vvm/
-├── skills/vvm/     # Language specification (spec.md, vvm.md)
-├── examples/       # 28 tutorial programs
-├── commands/       # Claude Code slash commands
-├── .claude/        # Claude Code integration
-└── .claude-plugin/ # Plugin manifest
-```
-
-The website and application live in a separate repository: [vvm-app](https://github.com/karanchawla/vvm-app)
-
----
+VVM is still evolving. Validate with `/vvm-compile` before running large workflows, and run high-impact automations with tight permissions and review gates.
 
 ## License
 
-MIT
+[MIT](LICENSE)

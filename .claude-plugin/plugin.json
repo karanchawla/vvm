@@ -1,7 +1,7 @@
 {
   "name": "vvm",
-  "description": "A language for agentic programs where the LLM is the runtime",
-  "version": "0.1.0",
+  "description": "A DSL for agentic workflows where the LLM is the runtime",
+  "version": "1.0.0",
   "author": {
     "name": "Karan Chawla",
     "url": "https://github.com/karanchawla"
@@ -16,6 +16,12 @@
     "workflow",
     "multi-agent",
     "llm",
-    "agentic"
+    "agentic",
+    "parallel",
+    "workflow-contracts",
+    "semantic-control-flow",
+    "state-backends",
+    "agent-memory",
+    "registry"
   ]
 }

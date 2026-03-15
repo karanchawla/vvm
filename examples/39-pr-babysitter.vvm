@@ -1,0 +1,437 @@
+# VVM Example 39: PR Babysitter (Autonomous Until Merged)
+#
+# Continuously tends an open pull request until it is merged:
+# - addresses reviewer comments and requested changes
+# - fixes failing CI checks
+# - keeps branch synced with base when needed
+# - merges when approvals/checks allow
+#
+# This example defaults to real developer workflows via `gh` + `git`.
+# It is designed to work across VVM state modes; in artifact-backed modes,
+# large cycle outputs remain refs.
+#
+# Usage:
+# /vvm-run examples/39-pr-babysitter.vvm --input pr_url="https://github.com/owner/repo/pull/123"
+# /vvm-run examples/39-pr-babysitter.vvm --state=filesystem --input pr_url="..."
+# /vvm-run examples/39-pr-babysitter.vvm --state=sqlite --input pr_url="..."
+# /vvm-run examples/39-pr-babysitter.vvm --state=postgres --input pr_url="..."
+
+input pr_url: "Pull request URL to babysit until merged"
+input repo_path: "Local repo path for checkout and edits" = "."
+input push_remote: "Git remote to push to" = "origin"
+input poll_seconds: "Sleep interval between monitoring cycles" = 120
+input merge_method: "Merge method: merge|squash|rebase" = "squash"
+input run_local_checks: "Run local checks before push when possible" = true
+input max_changed_files_per_cycle: "Safety budget for one autonomous change batch" = 30
+input memory_key: "Persistent memory key for this babysitter workflow" = "ops:pr-babysitter"
+
+agent captain(
+  model="opus",
+  prompt="""You are a PR babysitter captain.
+
+Objective:
+- get the target PR approved and merged safely
+- do the work a responsible developer would do
+
+Operating rules:
+1) Prefer smallest correct change for each cycle.
+2) Never ignore failing checks or reviewer feedback.
+3) Keep command evidence (what you ran, what happened).
+4) If uncertain, choose safe incremental action over risky broad edits.
+5) Preserve commit hygiene and explain what changed.
+
+Return concise, actionable outputs."""
+)
+
+agent repo_operator(
+  model="sonnet",
+  permissions=perm(
+    read=["**"],
+    write=["**"],
+    execute=[],
+    bash="allow",
+    network="allow",
+  ),
+  prompt="""You execute git/GitHub CLI operations precisely.
+
+Always use deterministic command sequences and include evidence:
+- command
+- key output excerpt
+- interpretation
+
+When editing git history, use safe defaults:
+- prefer normal commits
+- if force push is required, use --force-with-lease
+- never delete branches unless explicitly instructed."""
+)
+
+agent implementer(
+  model="opus",
+  permissions=perm(
+    read=["**"],
+    write=["**"],
+    execute=[],
+    bash="allow",
+    network="allow",
+  ),
+  prompt="""You are the implementation agent for PR maintenance.
+
+Responsibilities:
+- fix requested review issues
+- fix failing CI and root causes
+- run targeted local validation
+- commit and push cleanly
+
+Rules:
+- minimal, high-confidence changes
+- include tests when behavior changes
+- summarize exactly what was changed and why
+- include commit hash and push status in output"""
+)
+
+agent reviewer_comms(
+  model="sonnet",
+  permissions=perm(
+    read=["**"],
+    write=["**"],
+    execute=[],
+    bash="allow",
+    network="allow",
+  ),
+  prompt="""You handle PR communication with reviewers.
+
+Responsibilities:
+- post concise status updates
+- reply to actionable review comments with evidence
+- resolve threads when fixes are complete and justified
+
+Communication style:
+- factual, short, and specific
+- include commit references for each addressed point"""
+)
+
+agent merger(
+  model="sonnet",
+  permissions=perm(
+    read=["**"],
+    write=["**"],
+    execute=[],
+    bash="allow",
+    network="allow",
+  ),
+  prompt="""You merge pull requests safely.
+
+Behavior:
+- merge only when approved and checks are green (or set auto-merge when appropriate)
+- use selected merge method
+- verify merged state after command execution
+- report exact merge command and final PR state"""
+)
+
+def wait_cycle(reason, cycle):
+  return @repo_operator `Cycle {cycle}: wait and poll.
+
+Reason:
+{reason}
+
+Use repo_path={repo_path}.
+Sleep for {poll_seconds} seconds.
+After sleeping, do a lightweight refresh:
+- gh pr view {pr_url} --json state,mergeStateStatus,isDraft
+
+Return:
+## WAIT
+## POST_WAIT_STATE
+## EVIDENCE`(pack(reason, cycle, poll_seconds, pr_url, repo_path))
+
+# Preflight: verify tools/auth/repo linkage and checkout PR branch.
+preflight = @repo_operator `Run preflight for autonomous PR babysitting.
+
+Target PR: {pr_url}
+Local repo path: {repo_path}
+Push remote: {push_remote}
+
+Required checks:
+1) gh is installed and authenticated
+2) git repo available at repo_path (clone if needed)
+3) gh pr view works for this PR URL
+4) checkout PR head branch locally and set upstream
+
+Commands should include (or equivalent):
+- gh --version
+- gh auth status
+- gh pr view <pr_url> --json number,state,isDraft,headRefName,baseRefName,mergeStateStatus,reviewDecision,statusCheckRollup
+- gh pr checkout <pr_url>
+- git status --short --branch
+
+Return:
+## PREFLIGHT_STATUS
+## PR_META
+## BRANCH_STATE
+## BLOCKERS
+## EVIDENCE`(pack(pr_url, repo_path, push_remote))
+
+cycle = 0
+merged = false
+last_action = preflight
+final_state = preflight
+last_cycle_note = @captain.with(memory={ scope: "project", key: memory_key }) `Summarize preflight in <=8 bullets.
+
+Include:
+- tool/auth readiness
+- branch checkout status
+- immediate blockers (if any)
+- next recommended action`(preflight)
+
+while not merged:
+  cycle = cycle + 1
+
+  snapshot = @repo_operator `Cycle {cycle}: collect full PR snapshot and branch health.
+
+Target PR: {pr_url}
+Local repo path: {repo_path}
+
+Collect:
+1) PR state, draft status, mergeability, review decision
+2) unresolved review comments / review threads
+3) status checks summary with failing/pending checks
+4) merge conflicts / branch out-of-date status
+5) latest timeline events since last cycle (if available)
+
+Commands should include (or equivalent):
+- gh pr view <pr_url> --json state,isDraft,mergeStateStatus,reviewDecision,comments,reviews,latestReviews,statusCheckRollup,headRefName,baseRefName,url
+- gh pr checks <pr_url>
+- git fetch --all --prune
+- git status --short --branch
+
+Output contract (strict headings):
+## PR_STATE
+## REVIEW_STATE
+## CHECK_STATE
+## BRANCH_STATE
+## NEXT_ACTION_HINT
+## EVIDENCE`(pack(pr_url, repo_path, cycle, last_cycle_note))
+
+  final_state = snapshot
+
+  match snapshot:
+    case error(_):
+      recovery_plan = @captain.with(memory={ scope: "project", key: memory_key }) `Snapshot failed this cycle.
+
+Cycle: {cycle}
+Error:
+{snapshot}
+
+Set a conservative recovery step and keep the loop alive.`(pack(cycle, snapshot, last_action))
+      wait_result = wait_cycle("snapshot failure recovery", cycle)
+      last_action = pack(action="recover_after_snapshot_failure", recovery=recovery_plan, wait=wait_result)
+      last_cycle_note = @captain.with(memory={ scope: "project", key: memory_key }) `Summarize this recovery cycle in <=6 bullets.`(pack(cycle, last_action))
+      continue
+    case _:
+      pass
+
+  merged = ?`PR state explicitly indicates merged`(snapshot)
+  if merged:
+    break
+
+  choose snapshot by ?`highest-leverage next step to get this PR merged safely` as next_action:
+    option "fix_review_comments":
+      change_set = @implementer `Address reviewer feedback for this PR.
+
+Inputs:
+- PR snapshot
+- previous action context
+
+Tasks:
+1) gather unresolved actionable comments
+2) implement minimal fixes
+3) run targeted local validation (respect run_local_checks={run_local_checks})
+4) commit with clear message
+5) push to {push_remote}
+
+Safety:
+- keep changed files <= {max_changed_files_per_cycle} unless clearly required
+- avoid unrelated refactors
+
+Return headings:
+## CHANGES_MADE
+## VALIDATION
+## COMMIT_AND_PUSH
+## OPEN_ITEMS
+## EVIDENCE`(pack(pr_url, repo_path, snapshot, last_action, push_remote, run_local_checks, max_changed_files_per_cycle))
+
+      constrain change_set():
+        require ?`includes an explicit commit hash or clear statement that no commit was needed`
+        require ?`includes push status or explicit reason push did not occur`
+        require ?`includes evidence tied to reviewer requests`
+
+      review_update = @reviewer_comms `Post review updates for addressed comments.
+
+Use:
+- snapshot
+- change_set
+
+Actions:
+1) reply to review comments with what was fixed and commit reference
+2) resolve threads where appropriate
+3) leave clear note for any deferred items
+
+Return:
+## COMMENTS_POSTED
+## THREAD_ACTIONS
+## REMAINING_REVIEW_BLOCKERS
+## EVIDENCE`(pack(pr_url, snapshot, change_set))
+
+      last_action = pack(
+        action=next_action,
+        changes=change_set,
+        comms=review_update,
+      )
+
+    option "fix_failing_ci":
+      ci_fix = @implementer `Fix failing CI for this PR branch.
+
+Inputs:
+- snapshot with failing checks
+- repo path
+
+Tasks:
+1) identify failing jobs and root causes from CI output/logs
+2) reproduce locally where possible
+3) implement minimal fix
+4) run targeted validation locally
+5) commit and push
+6) summarize why this should unblock CI
+
+Return headings:
+## CI_FAILURES
+## ROOT_CAUSE
+## FIX_IMPLEMENTED
+## VALIDATION
+## COMMIT_AND_PUSH
+## EVIDENCE`(pack(pr_url, repo_path, snapshot, push_remote, run_local_checks))
+
+      constrain ci_fix():
+        require ?`includes failing check names or job identifiers`
+        require ?`includes root cause with concrete evidence`
+        require ?`includes commit hash or explicit no-commit reason`
+
+      ci_update = @reviewer_comms `Post CI remediation update to the PR.
+
+Include:
+- what failed
+- what was changed
+- where to verify
+- commit reference
+
+Return:
+## PR_UPDATE
+## EVIDENCE`(pack(pr_url, snapshot, ci_fix))
+
+      last_action = pack(
+        action=next_action,
+        ci_fix=ci_fix,
+        comms=ci_update,
+      )
+
+    option "sync_with_base":
+      sync_result = @repo_operator `Sync PR branch with base branch.
+
+Tasks:
+1) determine whether rebase or merge-from-base is safer
+2) perform sync
+3) resolve conflicts conservatively if needed
+4) run quick sanity checks
+5) push updated branch safely
+
+Rules:
+- if force push is needed, use --force-with-lease
+- explain conflict resolutions
+
+Return headings:
+## SYNC_DECISION
+## CONFLICTS_AND_RESOLUTION
+## COMMIT_AND_PUSH
+## EVIDENCE`(pack(pr_url, repo_path, snapshot, push_remote, run_local_checks))
+
+      last_action = pack(action=next_action, sync=sync_result)
+
+    option "merge_pr":
+      merge_result = @merger `Attempt to merge the PR now.
+
+Inputs:
+- pr_url
+- merge_method={merge_method}
+- latest snapshot
+
+Behavior:
+1) if fully ready, merge now via gh pr merge
+2) if checks are still running but policy allows, enable auto-merge
+3) verify resulting PR state
+
+Return headings:
+## MERGE_COMMAND
+## MERGE_RESULT
+## VERIFIED_PR_STATE
+## EVIDENCE`(pack(pr_url, merge_method, snapshot))
+
+      last_action = pack(action=next_action, merge=merge_result)
+
+    option "wait_for_external_signal":
+      wait_note = @captain.with(memory={ scope: "project", key: memory_key }) `No safe write action right now.
+
+Cycle: {cycle}
+Snapshot:
+{snapshot}
+
+Summarize what we are waiting for and what signals should trigger next action.`(pack(cycle, snapshot, last_action))
+      wait_result = wait_cycle(wait_note, cycle)
+      last_action = pack(action=next_action, note=wait_note, wait=wait_result)
+
+  last_cycle_note = @captain.with(memory={ scope: "project", key: memory_key }) `Summarize this action cycle in <=8 bullets.
+
+Include:
+- selected action
+- concrete progress made
+- remaining blockers
+- next expected signal`(pack(cycle, next_action, last_action))
+
+  # Re-check merged state after action execution.
+  post_action_state = @repo_operator `Cycle {cycle}: post-action PR state check.
+
+Use:
+- gh pr view {pr_url} --json state,mergeStateStatus,reviewDecision,statusCheckRollup
+
+Return:
+## POST_ACTION_STATE
+## EVIDENCE`(pack(pr_url, cycle, last_cycle_note))
+
+  final_state = post_action_state
+
+  merged = ?`PR is merged`(post_action_state)
+
+  if not merged:
+    cadence = wait_cycle("normal polling cadence", cycle)
+    last_action = pack(action="post_action_wait", wait=cadence)
+    last_cycle_note = @captain.with(memory={ scope: "project", key: memory_key }) `Summarize this wait period in <=5 bullets.`(pack(cycle, last_action, final_state))
+
+final_report = @captain.with(memory={ scope: "project", key: memory_key }) `The PR babysitter loop has exited after merge.
+
+Produce a production-ready handoff summary with:
+1) PR URL
+2) key changes delivered
+3) review concerns addressed
+4) CI failures fixed
+5) merge confirmation evidence
+6) any follow-up tasks after merge
+
+Use these artifacts:
+- preflight
+- last_action
+- final state context
+- last cycle note`(pack(pr_url, preflight, last_action, final_state, last_cycle_note))
+
+export final_report
+export preflight
+export last_action
+export final_state

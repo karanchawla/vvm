@@ -255,6 +255,33 @@ results = pmap(["Task 1", "Task 2", "Task 3"], process)
 
 ---
 
+### Large Artifact Workflow in In-Context Mode
+
+**Problem:** Running long, high-output workflows in in-context mode and expecting stable scaling.
+
+```vvm
+# Bad: Multiple heavy outputs chained in in-context mode
+research = @researcher `Deep research on {topic}.`(topic)
+analysis = @analyst `Analyze deeply.`(research)
+report = @writer `Long comprehensive report.`(analysis)
+```
+
+**Why it's bad:**
+- Context growth compounds across stages
+- Token usage and latency spike unpredictably
+- Failures are harder to inspect post-hoc
+
+**Solution:** Use artifact-backed state modes (`filesystem`, `sqlite`, or `postgres`) for large or long-running workloads.
+
+```vvm
+# Good: Same code, but run in artifact-backed mode:
+# /vvm-run program.vvm --state=filesystem
+# /vvm-run program.vvm --state=sqlite
+# /vvm-run program.vvm --state=postgres
+```
+
+---
+
 ## Parallel Block Anti-Patterns
 
 These anti-patterns apply specifically to `parallel()` blocks.
@@ -514,6 +541,35 @@ final = @agent `Use result.`(result)
 
 ---
 
+### Skipping Run Inspection After Failure
+
+**Problem:** Rerunning failed workflows immediately without inspecting run artifacts/state.
+
+```vvm
+# Bad operational loop:
+# 1) run fails
+# 2) rerun unchanged program
+# 3) fail again with little new signal
+```
+
+**Why it's bad:**
+- Repeats expensive failures
+- Hides root cause behind noise
+- Slows time-to-repair
+
+**Solution:** Inspect first, then apply targeted fixes.
+
+```vvm
+# Good operational loop:
+# /vvm-run-inspect <run-id>
+# fix specific failure
+# rerun
+```
+
+In sqlite/postgres modes, inspect execution and bindings tables to localize failing statements quickly.
+
+---
+
 ### Fire and Forget
 
 **Problem:** Agent calls without any error handling.
@@ -767,6 +823,68 @@ export report
 
 ---
 
+### Blind Remote Imports
+
+**Problem:** Importing remote workflows from registry/URLs without trust policy or contract inspection.
+
+```vvm
+# Bad: Unvetted remote import
+from "https://random-site.example/workflow.vvm" import * as remote
+result = remote(topic="security")
+```
+
+**Why it's bad:**
+- Supply-chain risk from untrusted modules
+- Unexpected contract drift at runtime
+- Non-reproducible behavior when content changes
+
+**Solution:** Use trusted domains, inspect contracts, and rely on cache/offline controls when required.
+
+```vvm
+# Better: registry shorthand + inspect before rollout
+from "@team/workflows/security-review" import * as remote
+result = remote(topic="security")
+```
+
+Operationally:
+- validate with `/vvm-registry-inspect`
+- enforce allowlist/denylist + HTTPS
+- use `--offline`/`--cache-only` where reproducibility is required
+
+---
+
+### Assuming Module Output Keys Always Exist
+
+**Problem:** Caller code accesses output keys that may be absent in evolving contracts.
+
+```vvm
+# Bad: crashes/returns unknown_output when key is absent
+from "./lib/report.vvm" import * as report_mod
+r = report_mod(topic="ai")
+notes = r.extra_notes
+```
+
+**Why it's bad:**
+- Tight coupling to unstable output surface
+- Breaks consumers on benign contract evolution
+- Hard to debug with remote modules
+
+**Solution:** Guard optional keys and treat module outputs as explicit contracts.
+
+```vvm
+from "./lib/report.vvm" import * as report_mod
+r = report_mod(topic="ai")
+
+notes = r["extra_notes"]
+match notes:
+  case error(kind="unknown_output"):
+    notes = ()
+  case _:
+    pass
+```
+
+---
+
 ## Summary
 
 | Anti-Pattern | Problem | Solution |
@@ -779,6 +897,7 @@ export report
 | Unbounded Loops | No termination guarantee | Use refine with max |
 | Redundant Computation | Repeating expensive work | Cache and reuse |
 | Sequential When Parallel | Independent tasks in sequence | Use pmap |
+| Large Artifact Workflow in In-Context Mode | Context/token blowups and weak observability | Use artifact-backed state modes |
 | Shared Memory Key (parallel) | Lock contention in branches | memory_mode="fresh" + merge |
 | Assuming All Complete | Access cancelled branches | Check _completed/_winner |
 | Parallel Dependencies | Branches depend on each other | Sequential for dependencies |
@@ -787,6 +906,7 @@ export report
 | Persisting Secrets | Secrets leak into memory files | Keep secrets out of memory |
 | Shared Memory Key (pmap) | Parallel writes/lock contention | Fresh/per-key + merge |
 | Silent Failures | Ignoring error values | Match on errors |
+| Skipping Run Inspection After Failure | Blind reruns without root cause | Inspect run artifacts/state first |
 | Fire and Forget | No error handling | Handle or log errors |
 | Overly Broad Handling | Catching all errors same way | Handle specific errors |
 | Constraint Overload | Too many constraints | Group and prioritize |
@@ -794,3 +914,5 @@ export report
 | Monolithic Module | One module does everything | Split into focused modules |
 | Deep Module Nesting | Module calls module calls module | Flatten to direct composition |
 | Hardcoded Module Values | No parameterization | Use input declarations |
+| Blind Remote Imports | Untrusted/non-reproducible dependencies | Inspect contracts + enforce trust/cache policy |
+| Assuming Module Output Keys Always Exist | Contract drift breaks callers | Guard optional outputs and handle unknown_output |
