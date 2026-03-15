@@ -1,21 +1,21 @@
 {
-    "name": "vvm",
-    "description": "A language for agentic programs where the LLM is the runtime",
-    "version": "0.0.4",
-    "author": {
-        "name": "Karan Chawla",
-        "url": "https://github.com/karanchawla"
-    },
-    "repository": "https://github.com/karanchawla/vvm",
-    "keywords": [
-        "ai",
-        "agents",
-        "orchestration",
-        "dsl",
-        "vvm",
-        "workflow",
-        "multi-agent",
-        "llm",
-        "agentic"
-    ]
+  "name": "vvm",
+  "description": "A language for agentic programs where the LLM is the runtime",
+  "version": "0.1.0",
+  "author": {
+    "name": "Karan Chawla",
+    "url": "https://github.com/karanchawla"
+  },
+  "repository": "https://github.com/karanchawla/vvm",
+  "keywords": [
+    "ai",
+    "agents",
+    "orchestration",
+    "dsl",
+    "vvm",
+    "workflow",
+    "multi-agent",
+    "llm",
+    "agentic"
+  ]
 }

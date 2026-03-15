@@ -1,0 +1,250 @@
+# VVM Example 38: RLM Diff Time Machine
+#
+# Recursive Language Model (RLM) pattern for git diff archaeology.
+# Default target is pydantic/pydantic, but callers can override inputs.
+#
+# Backend compatibility:
+# - in-context: returns strings
+# - filesystem/sqlite/postgres: returns ref values
+# The program only passes values/refs through normal VVM channels, so it works
+# across all state modes.
+#
+# Suggested runs:
+# /vvm-run examples/38-rlm-diff-time-machine.vvm
+# /vvm-run examples/38-rlm-diff-time-machine.vvm --state=filesystem
+# /vvm-run examples/38-rlm-diff-time-machine.vvm --state=sqlite
+# /vvm-run examples/38-rlm-diff-time-machine.vvm --state=postgres
+
+input repo_url: "Git repository URL to analyze" = "https://github.com/pydantic/pydantic.git"
+input repo_path: "Local clone path (created if missing)" = ".vvm/tmp/pydantic"
+input target_path: "File path to trace through history" = "pydantic/fields.py"
+input question: "Question to answer from historical diffs" = "How did validation and field metadata semantics evolve, and where are regression risks highest?"
+input max_commits: "Maximum commits to include in the manifest" = 160
+input max_depth: "Recursive split depth for RLM analysis" = 2
+input refresh_repo: "If true, fetch latest remote state before analysis" = false
+
+agent repo_operator(
+  model="sonnet",
+  permissions=perm(
+    read=["**"],
+    write=[".vvm/**"],
+    execute=[],
+    bash="allow",
+    network="allow",
+  ),
+  prompt="""You are a precise git archaeology operator.
+
+Use shell and git commands carefully. Prefer deterministic, read-only commands.
+You may clone/fetch under repo_path only.
+
+Always include command evidence in your output:
+- command
+- key output excerpt
+- what it means
+
+Never invent commit hashes or diffs."""
+)
+
+agent window_analyst(
+  model="sonnet",
+  permissions=perm(
+    read=["**"],
+    write=[],
+    execute=[],
+    bash="allow",
+    network="deny",
+  ),
+  prompt="""You analyze one commit window at a time for long-history reasoning.
+
+Given a manifest and a window spec:
+1) isolate the relevant commit subset
+2) summarize semantic shifts
+3) identify risk signals
+4) propose LEFT/RIGHT child windows for recursive drill-down
+
+You must stay grounded in commit-level evidence."""
+)
+
+agent reducer(
+  model="opus",
+  prompt="""You merge recursive analysis nodes into a coherent timeline.
+
+Preserve:
+- chronology
+- commit evidence
+- uncertainty notes
+- explicit risk transitions
+
+If child branches conflict, keep both views and explain the disagreement."""
+)
+
+agent answerer(
+  model="opus",
+  prompt="""You write an engineering-grade historical answer.
+
+Output sections:
+1) Direct answer
+2) Timeline phases
+3) Highest-risk commits or windows
+4) Suggested regression tests
+5) Confidence and unknowns
+
+Be concrete and cite commit evidence."""
+)
+
+# Step 1: Ensure a local working copy exists (and optionally refresh it).
+if refresh_repo:
+  repo_status = @repo_operator `Prepare repository for analysis.
+
+Inputs:
+- repo_url: {repo_url}
+- repo_path: {repo_path}
+
+Behavior:
+1) If repo_path does not exist, clone repo_url into repo_path.
+2) If repo_path exists and is a git repo, fetch latest remote updates.
+3) Checkout default branch safely.
+4) Report current HEAD commit hash and date.`(pack(repo_url, repo_path, refresh_repo))
+else:
+  repo_status = @repo_operator `Prepare repository for analysis without network refresh.
+
+Inputs:
+- repo_url: {repo_url}
+- repo_path: {repo_path}
+
+Behavior:
+1) If repo_path does not exist, clone repo_url into repo_path.
+2) If repo_path exists, do NOT fetch remote updates.
+3) Report current HEAD commit hash and date.`(pack(repo_url, repo_path, refresh_repo))
+
+# Step 2: Build a bounded diff manifest for the target path.
+history_manifest = @repo_operator `Build a chronological manifest for one file's history.
+
+Use repo_path and target_path.
+Target file: {target_path}
+Commit limit: {max_commits}
+
+Commands to use (or equivalent):
+- git log --follow --date=iso --max-count=<N> -- <target_path>
+- git show --stat --patch <commit> -- <target_path> (trimmed excerpts)
+
+Output required sections:
+## MANIFEST_META
+## COMMIT_TABLE
+## CHRONO_NOTES
+## OPEN_QUESTIONS
+
+Rules:
+- oldest -> newest ordering in COMMIT_TABLE
+- keep each commit note concise (1-3 bullets)
+- include commit hashes and dates
+- do not exceed practical context limits`(pack(repo_path, target_path, max_commits, question))
+
+def analyze_window(manifest, window_spec, depth):
+  window_report = @window_analyst `Analyze this recursive history window.
+
+Global question:
+{question}
+
+Target path:
+{target_path}
+
+Depth remaining:
+{depth}
+
+Window spec:
+{window_spec}
+
+Manifest:
+{manifest}
+
+Output required headings:
+## WINDOW
+## KEY_CHANGES
+## RISK_SIGNALS
+## LEFT_CHILD_WINDOW
+## RIGHT_CHILD_WINDOW
+## EVIDENCE`(pack(manifest, window_spec, depth, question, target_path))
+
+  if depth <= 0:
+    return window_report
+
+  parallel(join="all", on_fail="continue") as children:
+    left = analyze_window(
+      manifest,
+      pack(parent=window_report, child="LEFT"),
+      depth - 1
+    )
+    right = analyze_window(
+      manifest,
+      pack(parent=window_report, child="RIGHT"),
+      depth - 1
+    )
+
+  merged = @reducer `Merge one recursion level.
+
+Goal:
+- preserve chronological flow
+- surface where risk accumulates
+- keep contradictory child interpretations visible
+
+Parent report:
+{window_report}
+
+Children:
+{children}`(pack(window_report, children, depth, question, target_path))
+
+  return merged
+
+root_window = pack(
+  label="ROOT",
+  split_strategy="Partition commit history into older half (LEFT) and newer half (RIGHT) each level.",
+  target_path=target_path,
+  max_commits=max_commits,
+)
+
+analysis_tree = analyze_window(history_manifest, root_window, max_depth)
+
+risk_points = @reducer `Extract high-risk inflection points from this recursive tree.
+
+Return up to 10 entries with:
+- commit hash or commit-window identifier
+- what changed semantically
+- why it is risky
+- concrete regression tests to run
+
+Tree:
+{analysis_tree}`(pack(analysis_tree, question, target_path))
+
+answer = @answerer `Answer the question using the recursive analysis tree.
+
+Question:
+{question}
+
+Repository:
+{repo_url}
+
+Target path:
+{target_path}
+
+Inputs:
+- analysis_tree
+- risk_points
+- history_manifest metadata
+
+Produce an actionable answer for engineers maintaining this file.`(
+  pack(
+    answer_question=question,
+    analysis_tree=analysis_tree,
+    risk_points=risk_points,
+    history_manifest=history_manifest,
+    repo_url=repo_url,
+    target_path=target_path,
+  )
+)
+
+export answer
+export risk_points
+export analysis_tree
+export history_manifest
+export repo_status
